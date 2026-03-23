@@ -104,13 +104,22 @@ router.get('/feed', optionalAuth, async (req, res) => {
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
     const offset = (page - 1) * limit;
 
+    const userId = req.user ? req.user.id : null;
     const result = await pool.query(`
-      SELECT h.*, u.username, u.is_official_competitor
+      SELECT h.*, u.username, u.is_official_competitor,
+             COALESCE(ragg.avg_stars, 0)::float as avg_stars,
+             COALESCE(ragg.rating_count, 0)::int as rating_count,
+             my_r.stars::int as my_rating
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
+      LEFT JOIN (
+        SELECT hotdog_id, AVG(stars)::float as avg_stars, COUNT(*)::int as rating_count
+        FROM ratings GROUP BY hotdog_id
+      ) ragg ON ragg.hotdog_id = h.id
+      LEFT JOIN ratings my_r ON my_r.hotdog_id = h.id AND my_r.user_id = $3
       ORDER BY h.created_at DESC
       LIMIT $1 OFFSET $2
-    `, [limit, offset]);
+    `, [limit, offset, userId]);
 
     const countResult = await pool.query('SELECT COUNT(*) FROM hotdogs');
     const total = parseInt(countResult.rows[0].count);
@@ -123,7 +132,7 @@ router.get('/feed', optionalAuth, async (req, res) => {
     console.error('Feed error:', err);
     res.status(500).json({ error: 'Failed to load feed' });
   }
-});
+})
 
 router.get('/my-feed', authenticateToken, async (req, res) => {
   try {
@@ -132,13 +141,21 @@ router.get('/my-feed', authenticateToken, async (req, res) => {
     const offset = (page - 1) * limit;
 
     const result = await pool.query(`
-      SELECT h.*, u.username, u.is_official_competitor
+      SELECT h.*, u.username, u.is_official_competitor,
+             COALESCE(ragg.avg_stars, 0)::float as avg_stars,
+             COALESCE(ragg.rating_count, 0)::int as rating_count,
+             my_r.stars::int as my_rating
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
+      LEFT JOIN (
+        SELECT hotdog_id, AVG(stars)::float as avg_stars, COUNT(*)::int as rating_count
+        FROM ratings GROUP BY hotdog_id
+      ) ragg ON ragg.hotdog_id = h.id
+      LEFT JOIN ratings my_r ON my_r.hotdog_id = h.id AND my_r.user_id = $4
       WHERE h.user_id = $1
       ORDER BY h.created_at DESC
       LIMIT $2 OFFSET $3
-    `, [req.user.id, limit, offset]);
+    `, [req.user.id, limit, offset, req.user.id]);
 
     const countResult = await pool.query('SELECT COUNT(*) FROM hotdogs WHERE user_id = $1', [req.user.id]);
     const total = parseInt(countResult.rows[0].count);
@@ -154,7 +171,7 @@ router.get('/my-feed', authenticateToken, async (req, res) => {
     console.error('My feed error:', err);
     res.status(500).json({ error: 'Failed to load your feed' });
   }
-});
+})
 
 router.get('/:id', optionalAuth, async (req, res) => {
   try {

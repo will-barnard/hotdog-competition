@@ -70,6 +70,16 @@ async function initialize() {
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ratings (
+        id SERIAL PRIMARY KEY,
+        hotdog_id INTEGER REFERENCES hotdogs(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        stars SMALLINT NOT NULL CHECK (stars >= 1 AND stars <= 5),
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (hotdog_id, user_id)
+      )
+    `);
 
     console.log('Database initialized');
   } finally {

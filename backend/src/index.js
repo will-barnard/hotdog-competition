@@ -9,6 +9,7 @@ const leaderboardRoutes = require('./routes/leaderboard');
 const settingsRoutes = require('./routes/settings');
 const profileRoutes = require('./routes/profile');
 const commentRoutes = require('./routes/comments');
+const ratingRoutes = require('./routes/ratings');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -24,6 +25,7 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/comments', commentRoutes);
+app.use('/api/ratings', ratingRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

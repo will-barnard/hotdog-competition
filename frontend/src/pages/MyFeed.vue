@@ -25,6 +25,7 @@
               <span>{{ timeAgo(dog.created_at) }}</span>
             </div>
             <div v-if="dog.description" class="hotdog-card-desc">{{ dog.description }}</div>
+            <StarRating :hotdog-id="dog.id" :avg-stars="dog.avg_stars" :rating-count="dog.rating_count" :my-rating="dog.my_rating" />
             <CommentSection :hotdog-id="dog.id" />
             <button @click="deleteDog(dog.id)" class="btn btn-danger btn-sm" style="margin-top:10px;">Delete</button>
           </div>
@@ -45,9 +46,10 @@
 <script>
 import { hotdogs } from '../api';
 import CommentSection from '../components/CommentSection.vue';
+import StarRating from '../components/StarRating.vue';
 
 export default {
-  components: { CommentSection },
+  components: { CommentSection, StarRating },
   data() {
     return {
       hotdogList: [],

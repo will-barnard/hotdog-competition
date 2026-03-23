@@ -230,3 +230,20 @@ export const comments = {
     });
   }
 };
+
+export const ratings = {
+  async rate(hotdogId, stars) {
+    return request(`/ratings/${hotdogId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
+      body: JSON.stringify({ stars })
+    });
+  },
+
+  async remove(hotdogId) {
+    return request(`/ratings/${hotdogId}`, {
+      method: 'DELETE',
+      headers: getHeaders(true)
+    });
+  }
+};
