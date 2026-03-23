@@ -5,7 +5,7 @@
       <p>Who's eating the most dogs?</p>
     </div>
 
-    <div style="text-align: center; margin-bottom: 20px;">
+    <div style="text-align: left; margin-bottom: 20px;">
       <router-link to="/competitors" class="btn" style="display:inline-block;">👥 Competitors List</router-link>
     </div>
 

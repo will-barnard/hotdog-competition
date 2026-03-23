@@ -48,7 +48,7 @@
               <div class="hotdog-card-title">{{ dog.title }}</div>
               <div class="hotdog-card-meta">
                 <span class="hotdog-card-quantity">🌭 {{ dog.quantity }}</span>
-                <span v-if="dog.date_eaten" class="hotdog-card-date">📅 {{ formatDate(dog.date_eaten) }}</span>
+                <span v-if="dog.date_eaten" class="hotdog-card-date">📅 {{ formatDateShort(dog.date_eaten) }}</span>
                 <span>{{ timeAgo(dog.created_at) }}</span>
               </div>
               <div v-if="dog.description" class="hotdog-card-desc">{{ dog.description }}</div>
@@ -107,6 +107,10 @@ export default {
       if (!str) return '';
       return new Date(str).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     },
+    formatDateShort(str) {
+      if (!str) return '';
+      return new Date(str + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    },
     timeAgo(dateStr) {
       const seconds = Math.floor((Date.now() - new Date(dateStr)) / 1000);
       if (seconds < 60) return 'just now';
@@ -116,10 +120,6 @@ export default {
       if (hours < 24) return `${hours}h ago`;
       const days = Math.floor(hours / 24);
       return `${days}d ago`;
-    },
-    formatDate(str) {
-      if (!str) return '';
-      return new Date(str + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
   }
 };
