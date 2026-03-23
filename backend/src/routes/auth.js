@@ -108,4 +108,37 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
+router.patch('/me', authenticateToken, async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    if (!username || !username.trim()) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    const clean = username.trim();
+    if (clean.length < 2 || clean.length > 50) {
+      return res.status(400).json({ error: 'Username must be between 2 and 50 characters' });
+    }
+    if (!/^[a-zA-Z0-9_.-]+$/.test(clean)) {
+      return res.status(400).json({ error: 'Username can only contain letters, numbers, underscores, dots, and hyphens' });
+    }
+
+    const existing = await pool.query('SELECT id FROM users WHERE username = $1 AND id != $2', [clean, req.user.id]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'Username already taken' });
+    }
+
+    const result = await pool.query(
+      'UPDATE users SET username = $1 WHERE id = $2 RETURNING id, username, email, is_admin, is_official_competitor, profile_picture',
+      [clean, req.user.id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Update username error:', err);
+    res.status(500).json({ error: 'Failed to update username' });
+  }
+});
+
 module.exports = router;

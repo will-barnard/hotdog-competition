@@ -5,6 +5,30 @@
       <p>Manage your profile</p>
     </div>
 
+    <div class="card" style="max-width: 500px; margin-bottom: 20px;">
+      <h3 style="margin-top:0;">Username</h3>
+      <p style="color: var(--text-muted); margin-bottom: 12px;">Current: <strong>{{ currentUsername }}</strong></p>
+
+      <div class="form-group">
+        <label for="username-input" class="form-label">New username</label>
+        <input
+          id="username-input"
+          v-model="newUsername"
+          type="text"
+          placeholder="Enter new username"
+          maxlength="50"
+          class="form-input"
+        />
+      </div>
+
+      <button class="btn" @click="changeUsername" :disabled="!newUsername.trim() || savingUsername">
+        {{ savingUsername ? 'Saving...' : 'Save Username' }}
+      </button>
+
+      <div v-if="usernameSuccess" class="success-msg">{{ usernameSuccess }}</div>
+      <div v-if="usernameError" class="error-msg">{{ usernameError }}</div>
+    </div>
+
     <div class="card" style="max-width: 500px;">
       <h3 style="margin-top:0;">Profile Picture</h3>
 
@@ -40,6 +64,11 @@ import { auth, profile } from '../api';
 export default {
   data() {
     return {
+      currentUsername: auth.getUser()?.username || '',
+      newUsername: '',
+      savingUsername: false,
+      usernameSuccess: '',
+      usernameError: '',
       profilePicture: null,
       selectedFile: null,
       preview: null,
@@ -51,12 +80,34 @@ export default {
   async created() {
     try {
       const user = await auth.me();
+      this.currentUsername = user.username;
       this.profilePicture = user.profile_picture;
     } catch (e) {
       // ignore
     }
   },
   methods: {
+    async changeUsername() {
+      this.usernameSuccess = '';
+      this.usernameError = '';
+      this.savingUsername = true;
+      try {
+        const updatedUser = await auth.updateMe({ username: this.newUsername.trim() });
+        this.currentUsername = updatedUser.username;
+        this.newUsername = '';
+        this.usernameSuccess = 'Username updated!';
+        const storedUser = auth.getUser();
+        if (storedUser) {
+          storedUser.username = updatedUser.username;
+          localStorage.setItem('user', JSON.stringify(storedUser));
+          window.dispatchEvent(new Event('auth-change'));
+        }
+      } catch (e) {
+        this.usernameError = e.message || 'Failed to update username';
+      } finally {
+        this.savingUsername = false;
+      }
+    },
     onFileSelect(e) {
       const file = e.target.files[0];
       if (!file) return;

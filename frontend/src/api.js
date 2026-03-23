@@ -53,6 +53,14 @@ export const auth = {
     return request('/auth/me', { headers: getHeaders(true) });
   },
 
+  async updateMe(data) {
+    return request('/auth/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
+      body: JSON.stringify(data)
+    });
+  },
+
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
