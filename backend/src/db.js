@@ -28,7 +28,28 @@ async function runQuery(client, label, sql) {
   }
 }
 
+async function waitForPostgres(maxAttempts = 20, delayMs = 3000) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let client;
+    try {
+      client = await pool.connect();
+      await client.query('SELECT 1');
+      console.log('PostgreSQL is ready');
+      return;
+    } catch (err) {
+      console.log(`Waiting for PostgreSQL... (attempt ${attempt}/${maxAttempts}): ${err.message}`);
+      if (attempt < maxAttempts) {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    } finally {
+      if (client) client.release();
+    }
+  }
+  throw new Error('PostgreSQL did not become ready in time');
+}
+
 async function initialize() {
+  await waitForPostgres();
   const client = await pool.connect();
   try {
     await runQuery(client, 'CREATE users', `
