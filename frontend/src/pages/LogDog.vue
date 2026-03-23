@@ -71,6 +71,29 @@ export default {
         reader.readAsDataURL(file);
       }
     },
+    compressImage(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            const MAX = 1600;
+            let { width, height } = img;
+            if (width > MAX || height > MAX) {
+              if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+              else { width = Math.round(width * MAX / height); height = MAX; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.82);
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    },
     async submit() {
       this.error = null;
       this.success = false;
@@ -82,8 +105,9 @@ export default {
 
       this.loading = true;
       try {
+        const compressed = await this.compressImage(this.imageFile);
         const formData = new FormData();
-        formData.append('image', this.imageFile);
+        formData.append('image', compressed, 'photo.jpg');
         formData.append('title', this.title);
         formData.append('quantity', this.quantity);
         if (this.description) formData.append('description', this.description);
