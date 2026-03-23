@@ -28,6 +28,7 @@
               <span>{{ timeAgo(dog.created_at) }}</span>
             </div>
             <div v-if="dog.description" class="hotdog-card-desc">{{ dog.description }}</div>
+            <CommentSection :hotdog-id="dog.id" />
           </div>
         </div>
       </div>
@@ -45,8 +46,10 @@
 
 <script>
 import { hotdogs } from '../api';
+import CommentSection from '../components/CommentSection.vue';
 
 export default {
+  components: { CommentSection },
   data() {
     return {
       hotdogList: [],

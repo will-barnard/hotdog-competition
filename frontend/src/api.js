@@ -209,3 +209,24 @@ export const admin = {
     });
   }
 };
+
+export const comments = {
+  async list(hotdogId) {
+    return request(`/comments/${hotdogId}`, { headers: getHeaders(true) });
+  },
+
+  async create(hotdogId, content) {
+    return request(`/comments/${hotdogId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
+      body: JSON.stringify({ content })
+    });
+  },
+
+  async delete(commentId) {
+    return request(`/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: getHeaders(true)
+    });
+  }
+};

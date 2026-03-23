@@ -61,6 +61,15 @@ async function initialize() {
     // Run migrations separately to ensure they always execute
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture VARCHAR(500)`);
     await client.query(`ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS date_eaten DATE NOT NULL DEFAULT CURRENT_DATE`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS comments (
+        id SERIAL PRIMARY KEY,
+        hotdog_id INTEGER REFERENCES hotdogs(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
 
     console.log('Database initialized');
   } finally {
