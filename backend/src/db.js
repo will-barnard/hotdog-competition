@@ -33,8 +33,6 @@ async function initialize() {
         created_at TIMESTAMP DEFAULT NOW()
       );
 
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture VARCHAR(500);
-
       CREATE TABLE IF NOT EXISTS hotdogs (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -58,6 +56,10 @@ async function initialize() {
         ('rules', 'Welcome to the 2026 Hotdog Showdown!\n\n1. Log each hot dog you eat with a photo as proof.\n2. Each entry must include a title, quantity, and photo.\n3. The competition runs for the dates set by the admin.\n4. Official competitors are flagged by admins on a case-by-case basis.\n5. There are two leaderboards: Overall (everyone) and Official Competitors only.\n6. Admins may adjust or edit any entry to ensure fair play.\n7. This is mostly on the honor system — don''t be that person.\n8. Have fun and eat responsibly!\n\nGo Cubs! 🌭')
       ON CONFLICT (key) DO NOTHING;
     `);
+
+    // Run migrations separately to ensure they always execute
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture VARCHAR(500)`);
+
     console.log('Database initialized');
   } finally {
     client.release();
