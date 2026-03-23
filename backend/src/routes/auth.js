@@ -34,7 +34,7 @@ router.post('/register', async (req, res) => {
     const isFirstUser = parseInt(userCount.rows[0].count) === 0;
 
     const result = await pool.query(
-      'INSERT INTO users (username, email, password_hash, is_admin) VALUES ($1, $2, $3, $4) RETURNING id, username, email, is_admin, is_official_competitor',
+      'INSERT INTO users (username, email, password_hash, is_admin) VALUES ($1, $2, $3, $4) RETURNING id, username, email, is_admin, is_official_competitor, profile_picture',
       [username, email, passwordHash, isFirstUser]
     );
 
@@ -61,7 +61,7 @@ router.post('/login', async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT id, username, email, password_hash, is_admin, is_official_competitor FROM users WHERE email = $1',
+      'SELECT id, username, email, password_hash, is_admin, is_official_competitor, profile_picture FROM users WHERE email = $1',
       [email]
     );
 
@@ -93,7 +93,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, username, email, is_admin, is_official_competitor, created_at FROM users WHERE id = $1',
+      'SELECT id, username, email, is_admin, is_official_competitor, profile_picture, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
 

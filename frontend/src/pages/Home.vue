@@ -10,6 +10,11 @@
       📅 Competition: {{ formatDate(dates.competition_start) }} — {{ formatDate(dates.competition_end) }}
     </div>
 
+    <div v-if="showProfilePrompt" class="profile-prompt card">
+      <p>📸 <strong>Set your profile picture!</strong> Stand out on the leaderboard.</p>
+      <router-link to="/settings" class="btn" style="display:inline-block; margin-top: 8px;">Go to Settings</router-link>
+    </div>
+
     <div class="home-grid">
       <router-link to="/log" class="home-card" v-if="isLoggedIn">
         <span class="home-card-icon">📝</span>
@@ -56,7 +61,8 @@ export default {
   data() {
     return {
       isLoggedIn: auth.isLoggedIn(),
-      dates: null
+      dates: null,
+      showProfilePrompt: false
     };
   },
   async created() {
@@ -64,6 +70,14 @@ export default {
       this.dates = await settings.get();
     } catch (e) {
       // ignore
+    }
+    if (this.isLoggedIn) {
+      try {
+        const user = await auth.me();
+        this.showProfilePrompt = !user.profile_picture;
+      } catch (e) {
+        // ignore
+      }
     }
   },
   methods: {

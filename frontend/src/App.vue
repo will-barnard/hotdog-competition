@@ -10,6 +10,7 @@
           <template v-if="user">
             <router-link to="/log" class="btn-nav">Log a Dog</router-link>
             <router-link to="/my-feed">My Dogs</router-link>
+            <router-link to="/settings">Settings</router-link>
             <router-link v-if="user.is_admin" to="/admin">Admin</router-link>
             <button @click="logout" class="btn-logout">Logout</button>
           </template>
@@ -27,6 +28,7 @@
         <template v-if="user">
           <router-link to="/log" @click="mobileOpen = false">Log a Dog</router-link>
           <router-link to="/my-feed" @click="mobileOpen = false">My Dogs</router-link>
+          <router-link to="/settings" @click="mobileOpen = false">Settings</router-link>
           <router-link v-if="user.is_admin" to="/admin" @click="mobileOpen = false">Admin</router-link>
           <a href="#" @click.prevent="logout(); mobileOpen = false">Logout</a>
         </template>

@@ -139,6 +139,30 @@ export const settings = {
   }
 };
 
+export const profile = {
+  async get(username, page = 1) {
+    return request(`/profile/${encodeURIComponent(username)}?page=${page}`);
+  },
+
+  async uploadPicture(formData) {
+    const res = await fetch(API_BASE + '/profile/picture', {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: formData
+    });
+    if (!res.ok) {
+      if (res.status === 413) throw new Error('Image is too large. Please use a smaller photo.');
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to upload');
+      }
+      throw new Error(`Upload failed (${res.status})`);
+    }
+    return res.json();
+  }
+};
+
 export const admin = {
   async getUsers() {
     return request('/admin/users', { headers: getHeaders(true) });

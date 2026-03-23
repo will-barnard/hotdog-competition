@@ -29,8 +29,11 @@ async function initialize() {
         password_hash VARCHAR(255) NOT NULL,
         is_admin BOOLEAN DEFAULT FALSE,
         is_official_competitor BOOLEAN DEFAULT FALSE,
+        profile_picture VARCHAR(500),
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture VARCHAR(500);
 
       CREATE TABLE IF NOT EXISTS hotdogs (
         id SERIAL PRIMARY KEY,

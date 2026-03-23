@@ -20,7 +20,7 @@
             <div class="hotdog-card-title">{{ dog.title }}</div>
             <div class="hotdog-card-meta">
               <span>
-                {{ dog.username }}
+                <router-link :to="'/profile/' + dog.username" class="profile-link">{{ dog.username }}</router-link>
                 <span v-if="dog.is_official_competitor" class="official-badge" title="Official Competitor">✔</span>
               </span>
               <span class="hotdog-card-quantity">🌭 {{ dog.quantity }}</span>

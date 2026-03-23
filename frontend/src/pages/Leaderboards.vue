@@ -37,7 +37,9 @@
               {{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i + 1) }}
             </td>
             <td>
-              <strong>{{ entry.username }}</strong>
+              <router-link :to="'/profile/' + entry.username" class="profile-link">
+                <strong>{{ entry.username }}</strong>
+              </router-link>
               <span v-if="entry.is_official_competitor" class="official-badge" title="Official Competitor">✔</span>
             </td>
             <td><strong>{{ entry.total_dogs }}</strong></td>

@@ -885,3 +885,32 @@ body {
   justify-content: flex-end;
   margin-top: 20px;
 }
+
+.profile-link {
+  color: var(--cubs-blue);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.profile-link:hover {
+  text-decoration: underline;
+}
+
+.profile-prompt {
+  text-align: center;
+  padding: 20px;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, var(--cubs-blue), var(--cubs-blue-light));
+  color: white;
+  border-radius: var(--radius);
+}
+
+.profile-prompt p {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.profile-prompt .btn {
+  background: white;
+  color: var(--cubs-blue);
+}

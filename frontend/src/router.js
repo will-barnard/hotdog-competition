@@ -8,6 +8,8 @@ import MyFeed from './pages/MyFeed.vue';
 import Leaderboards from './pages/Leaderboards.vue';
 import Rules from './pages/Rules.vue';
 import Admin from './pages/Admin.vue';
+import Profile from './pages/Profile.vue';
+import Settings from './pages/Settings.vue';
 import { auth } from './api';
 
 const routes = [
@@ -20,6 +22,8 @@ const routes = [
   { path: '/leaderboards', component: Leaderboards },
   { path: '/rules', component: Rules },
   { path: '/admin', component: Admin, meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: '/profile/:username', component: Profile },
+  { path: '/settings', component: Settings, meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({
