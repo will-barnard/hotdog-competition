@@ -53,6 +53,7 @@ volumes:
   postgres-data:
     name: hotdog-showdown-postgres
   uploads:
+    name: hotdog-showdown-uploads
 
 networks:
   internal:
