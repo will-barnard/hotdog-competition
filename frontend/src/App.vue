@@ -8,10 +8,10 @@
           <router-link to="/leaderboards">Leaderboards</router-link>
           <router-link to="/rules">Rules</router-link>
           <template v-if="user">
-            <router-link to="/log" class="btn-nav">Log a Dog</router-link>
             <router-link to="/my-feed">My Dogs</router-link>
             <router-link to="/settings">Settings</router-link>
             <router-link v-if="user.is_admin" to="/admin">Admin</router-link>
+            <router-link to="/log" class="btn-nav">Log a Dog</router-link>
             <button @click="logout" class="btn-logout">Logout</button>
           </template>
           <template v-else>
