@@ -10,6 +10,7 @@ services:
 
   backend:
     build: ./backend
+    restart: unless-stopped
     expose:
       - "3001"
     environment:
@@ -30,6 +31,7 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     expose:
       - "5432"
     environment:
