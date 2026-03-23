@@ -6,10 +6,12 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'hotdog_showdown',
   user: process.env.DB_USER || 'hotdog',
   password: process.env.DB_PASSWORD || 'hotdog_secret',
+  max: 10,
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
-  idleTimeoutMillis: 30000,
+  idleTimeoutMillis: 20000,
   connectionTimeoutMillis: 5000,
+  allowExitOnIdle: false,
 });
 
 pool.on('error', (err) => {
