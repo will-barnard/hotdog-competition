@@ -9,8 +9,8 @@ const pool = new Pool({
   max: 10,
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
-  idleTimeoutMillis: 20000,
-  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 10000,
   allowExitOnIdle: false,
 });
 
@@ -23,12 +23,12 @@ async function runQuery(client, label, sql) {
     await client.query(sql);
     console.log(`DB init OK: ${label}`);
   } catch (err) {
-    console.error(`DB init FAILED: ${label} —`, err.message);
-    throw err;
+    console.error(`DB init WARN: ${label} — ${err.message}`);
+    // Don't throw — let other migrations continue
   }
 }
 
-async function waitForPostgres(maxAttempts = 20, delayMs = 3000) {
+async function waitForPostgres(maxAttempts = 30, delayMs = 2000) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     let client;
     try {
@@ -50,9 +50,10 @@ async function waitForPostgres(maxAttempts = 20, delayMs = 3000) {
 
 async function initialize() {
   await waitForPostgres();
-  const client = await pool.connect();
-  try {
-    await runQuery(client, 'CREATE users', `
+
+  // Run each migration in its own connection to isolate failures
+  const migrations = [
+    ['CREATE users', `
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(50) UNIQUE NOT NULL,
@@ -63,9 +64,8 @@ async function initialize() {
         profile_picture VARCHAR(500),
         created_at TIMESTAMP DEFAULT NOW()
       )
-    `);
-
-    await runQuery(client, 'CREATE hotdogs', `
+    `],
+    ['CREATE hotdogs', `
       CREATE TABLE IF NOT EXISTS hotdogs (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -77,28 +77,24 @@ async function initialize() {
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       )
-    `);
-
-    await runQuery(client, 'CREATE settings', `
+    `],
+    ['CREATE settings', `
       CREATE TABLE IF NOT EXISTS settings (
         id SERIAL PRIMARY KEY,
         key VARCHAR(100) UNIQUE NOT NULL,
         value TEXT NOT NULL
       )
-    `);
-
-    await runQuery(client, 'INSERT default settings', `
+    `],
+    ['INSERT default settings', `
       INSERT INTO settings (key, value) VALUES
         ('competition_start', '2026-07-04T00:00:00Z'),
         ('competition_end', '2026-09-07T23:59:59Z'),
         ('rules', 'Welcome to the 2026 Hotdog Showdown!\n\n1. Log each hot dog you eat with a photo as proof.\n2. Each entry must include a title, quantity, and photo.\n3. The competition runs for the dates set by the admin.\n4. Official competitors are flagged by admins on a case-by-case basis.\n5. There are two leaderboards: Overall (everyone) and Official Competitors only.\n6. Admins may adjust or edit any entry to ensure fair play.\n7. This is mostly on the honor system — don''t be that person.\n8. Have fun and eat responsibly!\n\nGo Cubs! 🌭')
       ON CONFLICT (key) DO NOTHING
-    `);
-
-    await runQuery(client, 'ADD COLUMN users.profile_picture', `ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture VARCHAR(500)`);
-    await runQuery(client, 'ADD COLUMN hotdogs.date_eaten', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS date_eaten DATE NOT NULL DEFAULT CURRENT_DATE`);
-
-    await runQuery(client, 'CREATE comments', `
+    `],
+    ['ADD COLUMN users.profile_picture', `ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture VARCHAR(500)`],
+    ['ADD COLUMN hotdogs.date_eaten', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS date_eaten DATE NOT NULL DEFAULT CURRENT_DATE`],
+    ['CREATE comments', `
       CREATE TABLE IF NOT EXISTS comments (
         id SERIAL PRIMARY KEY,
         hotdog_id INTEGER REFERENCES hotdogs(id) ON DELETE CASCADE,
@@ -106,9 +102,8 @@ async function initialize() {
         content TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       )
-    `);
-
-    await runQuery(client, 'CREATE ratings', `
+    `],
+    ['CREATE ratings', `
       CREATE TABLE IF NOT EXISTS ratings (
         id SERIAL PRIMARY KEY,
         hotdog_id INTEGER REFERENCES hotdogs(id) ON DELETE CASCADE,
@@ -117,12 +112,37 @@ async function initialize() {
         created_at TIMESTAMP DEFAULT NOW(),
         UNIQUE (hotdog_id, user_id)
       )
-    `);
+    `],
+  ];
 
-    console.log('Database initialized successfully');
-  } finally {
-    client.release();
+  for (const [label, sql] of migrations) {
+    const client = await pool.connect();
+    try {
+      await runQuery(client, label, sql);
+    } finally {
+      client.release();
+    }
   }
+
+  // Verify critical tables exist
+  const verifyClient = await pool.connect();
+  try {
+    const check = await verifyClient.query(`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name IN ('users', 'hotdogs', 'settings', 'comments', 'ratings')
+    `);
+    const tables = check.rows.map(r => r.table_name);
+    console.log('Verified tables:', tables.join(', '));
+    const required = ['users', 'hotdogs', 'settings', 'comments', 'ratings'];
+    const missing = required.filter(t => !tables.includes(t));
+    if (missing.length > 0) {
+      throw new Error(`Critical tables missing after init: ${missing.join(', ')}`);
+    }
+  } finally {
+    verifyClient.release();
+  }
+
+  console.log('Database initialized successfully');
 }
 
 module.exports = { pool, initialize };
