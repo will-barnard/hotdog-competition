@@ -65,4 +65,21 @@ router.get('/competitors', async (req, res) => {
   }
 });
 
+router.get('/all-competitors', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT u.id, u.username, u.is_official_competitor,
+             COALESCE(SUM(h.quantity), 0)::int as total_dogs
+      FROM users u
+      LEFT JOIN hotdogs h ON u.id = h.user_id
+      GROUP BY u.id
+      ORDER BY u.username ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('All competitors error:', err);
+    res.status(500).json({ error: 'Failed to load competitors list' });
+  }
+});
+
 module.exports = router;

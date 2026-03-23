@@ -10,6 +10,7 @@ import Rules from './pages/Rules.vue';
 import Admin from './pages/Admin.vue';
 import Profile from './pages/Profile.vue';
 import Settings from './pages/Settings.vue';
+import Competitors from './pages/Competitors.vue';
 import { auth } from './api';
 
 const routes = [
@@ -20,6 +21,7 @@ const routes = [
   { path: '/feed', component: Feed },
   { path: '/my-feed', component: MyFeed, meta: { requiresAuth: true } },
   { path: '/leaderboards', component: Leaderboards },
+  { path: '/competitors', component: Competitors },
   { path: '/rules', component: Rules },
   { path: '/admin', component: Admin, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/profile/:username', component: Profile },

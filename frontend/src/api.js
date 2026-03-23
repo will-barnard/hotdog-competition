@@ -122,6 +122,10 @@ export const leaderboard = {
 
   async competitors() {
     return request('/leaderboard/competitors');
+  },
+
+  async allCompetitors() {
+    return request('/leaderboard/all-competitors');
   }
 };
 
