@@ -24,6 +24,7 @@
                 <span v-if="dog.is_official_competitor" class="official-badge" title="Official Competitor">✔</span>
               </span>
               <span class="hotdog-card-quantity">🌭 {{ dog.quantity }}</span>
+              <span v-if="dog.date_eaten" class="hotdog-card-date">📅 {{ formatDate(dog.date_eaten) }}</span>
               <span>{{ timeAgo(dog.created_at) }}</span>
             </div>
             <div v-if="dog.description" class="hotdog-card-desc">{{ dog.description }}</div>
@@ -80,6 +81,10 @@ export default {
       if (hours < 24) return `${hours}h ago`;
       const days = Math.floor(hours / 24);
       return `${days}d ago`;
+    },
+    formatDate(str) {
+      if (!str) return '';
+      return new Date(str + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
   }
 };

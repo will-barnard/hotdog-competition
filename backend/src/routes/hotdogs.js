@@ -33,7 +33,7 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
       return res.status(400).json({ error: 'Image is required' });
     }
 
-    const { title, quantity, description } = req.body;
+    const { title, quantity, description, date_eaten } = req.body;
 
     if (!title || !quantity) {
       return res.status(400).json({ error: 'Title and quantity are required' });
@@ -42,6 +42,32 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
     const qty = parseInt(quantity);
     if (isNaN(qty) || qty < 1 || qty > 100) {
       return res.status(400).json({ error: 'Quantity must be between 1 and 100' });
+    }
+
+    // Validate date_eaten: must be provided, not in the future, within 3 days
+    if (!date_eaten) {
+      return res.status(400).json({ error: 'Date eaten is required' });
+    }
+    const eaten = new Date(date_eaten + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    if (eaten > today) {
+      return res.status(400).json({ error: 'Cannot log future hot dogs' });
+    }
+    if (eaten < threeDaysAgo) {
+      return res.status(400).json({ error: 'Hot dogs can only be logged within 3 days of eating' });
+    }
+
+    // Check if competition has ended
+    const settingsResult = await pool.query("SELECT value FROM settings WHERE key = 'competition_end'");
+    if (settingsResult.rows.length > 0) {
+      const compEnd = new Date(settingsResult.rows[0].value);
+      if (new Date() > compEnd) {
+        return res.status(400).json({ error: 'The competition has ended. Logging is closed.' });
+      }
     }
 
     const filename = crypto.randomBytes(16).toString('hex') + '.webp';
@@ -55,8 +81,8 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
     const imageUrl = `/uploads/${filename}`;
 
     const result = await pool.query(
-      'INSERT INTO hotdogs (user_id, title, description, quantity, image_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.user.id, title, description || null, qty, imageUrl]
+      'INSERT INTO hotdogs (user_id, title, description, quantity, image_url, date_eaten) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [req.user.id, title, description || null, qty, imageUrl, date_eaten]
     );
 
     const hotdog = result.rows[0];

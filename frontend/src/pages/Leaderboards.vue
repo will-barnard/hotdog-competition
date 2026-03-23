@@ -16,6 +16,12 @@
 
     <div v-if="loading" class="loading">Loading leaderboard...</div>
 
+    <div v-else-if="notStarted" class="card" style="text-align:center; padding:40px;">
+      <p style="font-size:2rem; margin-bottom:10px;">🏟️</p>
+      <p style="font-weight:600; font-size:1.1rem;">Competition has not begun yet</p>
+      <p style="color:var(--text-muted); margin-top:8px;">Check back on {{ formattedStart }}</p>
+    </div>
+
     <div v-else-if="currentList.length === 0" class="card" style="text-align:center; padding:40px;">
       <p style="color:var(--text-muted);">No entries yet. Start eating!</p>
     </div>
@@ -62,17 +68,29 @@ export default {
       overallList: [],
       competitorsList: [],
       loading: true,
-      competitorsLoaded: false
+      competitorsLoaded: false,
+      notStarted: false,
+      competitionStart: null
     };
   },
   computed: {
     currentList() {
       return this.tab === 'overall' ? this.overallList : this.competitorsList;
+    },
+    formattedStart() {
+      if (!this.competitionStart) return '';
+      return new Date(this.competitionStart).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     }
   },
   async created() {
     try {
-      this.overallList = await leaderboard.overall();
+      const data = await leaderboard.overall();
+      if (data.not_started) {
+        this.notStarted = true;
+        this.competitionStart = data.competition_start;
+      } else {
+        this.overallList = data;
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -81,11 +99,17 @@ export default {
   },
   methods: {
     async loadCompetitors() {
-      if (this.competitorsLoaded) return;
+      if (this.competitorsLoaded || this.notStarted) return;
       this.loading = true;
       try {
-        this.competitorsList = await leaderboard.competitors();
-        this.competitorsLoaded = true;
+        const data = await leaderboard.competitors();
+        if (data.not_started) {
+          this.notStarted = true;
+          this.competitionStart = data.competition_start;
+        } else {
+          this.competitorsList = data;
+          this.competitorsLoaded = true;
+        }
       } catch (e) {
         console.error(e);
       } finally {

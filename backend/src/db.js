@@ -40,6 +40,7 @@ async function initialize() {
         description TEXT,
         quantity INTEGER NOT NULL DEFAULT 1,
         image_url VARCHAR(500) NOT NULL,
+        date_eaten DATE NOT NULL DEFAULT CURRENT_DATE,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
@@ -59,6 +60,7 @@ async function initialize() {
 
     // Run migrations separately to ensure they always execute
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture VARCHAR(500)`);
+    await client.query(`ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS date_eaten DATE NOT NULL DEFAULT CURRENT_DATE`);
 
     console.log('Database initialized');
   } finally {
