@@ -40,7 +40,7 @@
       <router-view :key="$route.fullPath" />
     </main>
     <footer class="footer">
-      <p>🌭 2026 Hotdog Showdown — Inspired by the Chicago Cubs 💙</p>
+      <p>🌭 2026 Hotdog Showdown</p>
     </footer>
   </div>
 </template>
