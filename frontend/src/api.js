@@ -79,9 +79,16 @@ export const hotdogs = {
       headers: getHeaders(true),
       body: formData
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to create');
-    return data;
+    if (!res.ok) {
+      if (res.status === 413) throw new Error('Image is too large. Please use a smaller photo.');
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to create');
+      }
+      throw new Error(`Upload failed (${res.status})`);
+    }
+    return res.json();
   },
 
   async feed(page = 1, limit = 20) {
