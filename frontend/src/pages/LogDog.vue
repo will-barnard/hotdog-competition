@@ -152,13 +152,7 @@ export default {
         if (this.description) formData.append('description', this.description);
 
         await hotdogs.create(formData);
-        this.success = true;
-        this.title = '';
-        this.quantity = 1;
-        this.description = '';
-        this.dateEaten = new Date().toISOString().split('T')[0];
-        this.imageFile = null;
-        this.imagePreview = null;
+        this.$router.push('/my-feed');
       } catch (e) {
         this.error = e.message;
       } finally {
