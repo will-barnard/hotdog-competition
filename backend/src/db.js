@@ -31,8 +31,10 @@ async function initialize() {
         is_official_competitor BOOLEAN DEFAULT FALSE,
         profile_picture VARCHAR(500),
         created_at TIMESTAMP DEFAULT NOW()
-      );
+      )
+    `);
 
+    await client.query(`
       CREATE TABLE IF NOT EXISTS hotdogs (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -43,24 +45,29 @@ async function initialize() {
         date_eaten DATE NOT NULL DEFAULT CURRENT_DATE,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
-      );
+      )
+    `);
 
+    await client.query(`
       CREATE TABLE IF NOT EXISTS settings (
         id SERIAL PRIMARY KEY,
         key VARCHAR(100) UNIQUE NOT NULL,
         value TEXT NOT NULL
-      );
+      )
+    `);
 
+    await client.query(`
       INSERT INTO settings (key, value) VALUES
         ('competition_start', '2026-07-04T00:00:00Z'),
         ('competition_end', '2026-09-07T23:59:59Z'),
         ('rules', 'Welcome to the 2026 Hotdog Showdown!\n\n1. Log each hot dog you eat with a photo as proof.\n2. Each entry must include a title, quantity, and photo.\n3. The competition runs for the dates set by the admin.\n4. Official competitors are flagged by admins on a case-by-case basis.\n5. There are two leaderboards: Overall (everyone) and Official Competitors only.\n6. Admins may adjust or edit any entry to ensure fair play.\n7. This is mostly on the honor system — don''t be that person.\n8. Have fun and eat responsibly!\n\nGo Cubs! 🌭')
-      ON CONFLICT (key) DO NOTHING;
+      ON CONFLICT (key) DO NOTHING
     `);
 
-    // Run migrations separately to ensure they always execute
+    // Column migrations — each runs independently so one failure can't block another
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture VARCHAR(500)`);
     await client.query(`ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS date_eaten DATE NOT NULL DEFAULT CURRENT_DATE`);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS comments (
         id SERIAL PRIMARY KEY,
@@ -82,6 +89,9 @@ async function initialize() {
     `);
 
     console.log('Database initialized');
+  } catch (err) {
+    console.error('Database initialization error:', err);
+    throw err;
   } finally {
     client.release();
   }
