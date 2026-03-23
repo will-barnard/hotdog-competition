@@ -232,6 +232,19 @@ export const comments = {
 };
 
 export const ratings = {
+  async batch(hotdogIds, userId) {
+    if (!hotdogIds.length) return {};
+    const params = new URLSearchParams({ ids: hotdogIds.join(',') });
+    if (userId) params.set('userId', userId);
+    try {
+      const data = await request(`/ratings/batch?${params}`, { headers: getHeaders(true) });
+      return data.ratings || {};
+    } catch (e) {
+      console.error('Failed to load ratings:', e);
+      return {};
+    }
+  },
+
   async rate(hotdogId, stars) {
     return request(`/ratings/${hotdogId}`, {
       method: 'POST',

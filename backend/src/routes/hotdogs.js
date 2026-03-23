@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { pool } = require('../db');
-const { authenticateToken, optionalAuth } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -98,28 +98,19 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
   }
 });
 
-router.get('/feed', optionalAuth, async (req, res) => {
+router.get('/feed', async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
     const offset = (page - 1) * limit;
 
-    const userId = req.user ? req.user.id : null;
     const result = await pool.query(`
-      SELECT h.*, u.username, u.is_official_competitor,
-             COALESCE(ragg.avg_stars, 0)::float as avg_stars,
-             COALESCE(ragg.rating_count, 0)::int as rating_count,
-             my_r.stars::int as my_rating
+      SELECT h.*, u.username, u.is_official_competitor
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
-      LEFT JOIN (
-        SELECT hotdog_id, AVG(stars)::float as avg_stars, COUNT(*)::int as rating_count
-        FROM ratings GROUP BY hotdog_id
-      ) ragg ON ragg.hotdog_id = h.id
-      LEFT JOIN ratings my_r ON my_r.hotdog_id = h.id AND my_r.user_id = $3
       ORDER BY h.created_at DESC
       LIMIT $1 OFFSET $2
-    `, [limit, offset, userId]);
+    `, [limit, offset]);
 
     const countResult = await pool.query('SELECT COUNT(*) FROM hotdogs');
     const total = parseInt(countResult.rows[0].count);
@@ -141,21 +132,13 @@ router.get('/my-feed', authenticateToken, async (req, res) => {
     const offset = (page - 1) * limit;
 
     const result = await pool.query(`
-      SELECT h.*, u.username, u.is_official_competitor,
-             COALESCE(ragg.avg_stars, 0)::float as avg_stars,
-             COALESCE(ragg.rating_count, 0)::int as rating_count,
-             my_r.stars::int as my_rating
+      SELECT h.*, u.username, u.is_official_competitor
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
-      LEFT JOIN (
-        SELECT hotdog_id, AVG(stars)::float as avg_stars, COUNT(*)::int as rating_count
-        FROM ratings GROUP BY hotdog_id
-      ) ragg ON ragg.hotdog_id = h.id
-      LEFT JOIN ratings my_r ON my_r.hotdog_id = h.id AND my_r.user_id = $4
       WHERE h.user_id = $1
       ORDER BY h.created_at DESC
       LIMIT $2 OFFSET $3
-    `, [req.user.id, limit, offset, req.user.id]);
+    `, [req.user.id, limit, offset]);
 
     const countResult = await pool.query('SELECT COUNT(*) FROM hotdogs WHERE user_id = $1', [req.user.id]);
     const total = parseInt(countResult.rows[0].count);
@@ -173,7 +156,7 @@ router.get('/my-feed', authenticateToken, async (req, res) => {
   }
 })
 
-router.get('/:id', optionalAuth, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });

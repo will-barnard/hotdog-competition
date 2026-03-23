@@ -52,7 +52,7 @@
                 <span>{{ timeAgo(dog.created_at) }}</span>
               </div>
               <div v-if="dog.description" class="hotdog-card-desc">{{ dog.description }}</div>
-              <StarRating :hotdog-id="dog.id" :avg-stars="dog.avg_stars" :rating-count="dog.rating_count" :my-rating="dog.my_rating" />
+              <StarRating :hotdog-id="dog.id" :avg-stars="ratingData[dog.id]?.avg_stars || 0" :rating-count="ratingData[dog.id]?.rating_count || 0" :my-rating="ratingData[dog.id]?.my_rating || null" />
               <CommentSection :hotdog-id="dog.id" />
             </div>
           </div>
@@ -71,7 +71,7 @@
 </template>
 
 <script>
-import { profile } from '../api';
+import { profile, ratings, auth } from '../api';
 import CommentSection from '../components/CommentSection.vue';
 import StarRating from '../components/StarRating.vue';
 
@@ -82,6 +82,7 @@ export default {
       userData: null,
       stats: { total_dogs: 0, total_entries: 0 },
       hotdogList: [],
+      ratingData: {},
       pagination: {},
       page: 1,
       loading: true,
@@ -102,6 +103,9 @@ export default {
         this.hotdogList = data.hotdogs;
         this.pagination = data.pagination;
         this.page = p;
+        const ids = data.hotdogs.map(d => d.id);
+        const user = auth.getUser();
+        this.ratingData = await ratings.batch(ids, user?.id);
       } catch (e) {
         this.error = e.message || 'User not found';
       } finally {
