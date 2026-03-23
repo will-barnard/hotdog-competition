@@ -13,7 +13,7 @@
       <h2>📅 Competition Settings</h2>
       <div class="card">
         <form @submit.prevent="saveSettings">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;" class="settings-dates">
             <div class="form-group">
               <label>Start Date</label>
               <input v-model="settingsForm.competition_start" type="datetime-local" />
@@ -37,7 +37,8 @@
     <!-- Users Management -->
     <div class="admin-section">
       <h2>👥 Users</h2>
-      <div class="card" style="padding:0; overflow-x:auto;">
+      <div class="card" style="padding:0;">
+        <div class="admin-table-wrap">
         <table class="admin-table">
           <thead>
             <tr>
@@ -77,13 +78,15 @@
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
 
     <!-- Hotdog Entries -->
     <div class="admin-section">
       <h2>🌭 Hot Dog Entries</h2>
-      <div class="card" style="padding:0; overflow-x:auto;">
+      <div class="card" style="padding:0;">
+        <div class="admin-table-wrap">
         <table class="admin-table">
           <thead>
             <tr>
@@ -109,6 +112,7 @@
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
       <div class="pagination" v-if="hotdogPagination.pages > 1">
         <button @click="loadHotdogs(hotdogPage - 1)" :disabled="hotdogPage <= 1">← Previous</button>

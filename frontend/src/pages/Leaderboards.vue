@@ -21,6 +21,7 @@
     </div>
 
     <div v-else class="card" style="padding:0; overflow:hidden;">
+      <div class="table-wrap">
       <table class="leaderboard-table">
         <thead>
           <tr>
@@ -44,6 +45,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </template>
