@@ -18,10 +18,20 @@ pool.on('error', (err) => {
   console.error('Unexpected pg pool error:', err.message);
 });
 
+async function runQuery(client, label, sql) {
+  try {
+    await client.query(sql);
+    console.log(`DB init OK: ${label}`);
+  } catch (err) {
+    console.error(`DB init FAILED: ${label} —`, err.message);
+    throw err;
+  }
+}
+
 async function initialize() {
   const client = await pool.connect();
   try {
-    await client.query(`
+    await runQuery(client, 'CREATE users', `
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(50) UNIQUE NOT NULL,
@@ -34,7 +44,7 @@ async function initialize() {
       )
     `);
 
-    await client.query(`
+    await runQuery(client, 'CREATE hotdogs', `
       CREATE TABLE IF NOT EXISTS hotdogs (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -48,7 +58,7 @@ async function initialize() {
       )
     `);
 
-    await client.query(`
+    await runQuery(client, 'CREATE settings', `
       CREATE TABLE IF NOT EXISTS settings (
         id SERIAL PRIMARY KEY,
         key VARCHAR(100) UNIQUE NOT NULL,
@@ -56,7 +66,7 @@ async function initialize() {
       )
     `);
 
-    await client.query(`
+    await runQuery(client, 'INSERT default settings', `
       INSERT INTO settings (key, value) VALUES
         ('competition_start', '2026-07-04T00:00:00Z'),
         ('competition_end', '2026-09-07T23:59:59Z'),
@@ -64,11 +74,10 @@ async function initialize() {
       ON CONFLICT (key) DO NOTHING
     `);
 
-    // Column migrations — each runs independently so one failure can't block another
-    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture VARCHAR(500)`);
-    await client.query(`ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS date_eaten DATE NOT NULL DEFAULT CURRENT_DATE`);
+    await runQuery(client, 'ADD COLUMN users.profile_picture', `ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture VARCHAR(500)`);
+    await runQuery(client, 'ADD COLUMN hotdogs.date_eaten', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS date_eaten DATE NOT NULL DEFAULT CURRENT_DATE`);
 
-    await client.query(`
+    await runQuery(client, 'CREATE comments', `
       CREATE TABLE IF NOT EXISTS comments (
         id SERIAL PRIMARY KEY,
         hotdog_id INTEGER REFERENCES hotdogs(id) ON DELETE CASCADE,
@@ -77,7 +86,8 @@ async function initialize() {
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
-    await client.query(`
+
+    await runQuery(client, 'CREATE ratings', `
       CREATE TABLE IF NOT EXISTS ratings (
         id SERIAL PRIMARY KEY,
         hotdog_id INTEGER REFERENCES hotdogs(id) ON DELETE CASCADE,
@@ -88,10 +98,7 @@ async function initialize() {
       )
     `);
 
-    console.log('Database initialized');
-  } catch (err) {
-    console.error('Database initialization error:', err);
-    throw err;
+    console.log('Database initialized successfully');
   } finally {
     client.release();
   }
