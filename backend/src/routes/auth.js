@@ -29,9 +29,13 @@ router.post('/register', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // First user to register becomes admin automatically
+    const userCount = await pool.query('SELECT COUNT(*) FROM users');
+    const isFirstUser = parseInt(userCount.rows[0].count) === 0;
+
     const result = await pool.query(
-      'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, is_admin, is_official_competitor',
-      [username, email, passwordHash]
+      'INSERT INTO users (username, email, password_hash, is_admin) VALUES ($1, $2, $3, $4) RETURNING id, username, email, is_admin, is_official_competitor',
+      [username, email, passwordHash, isFirstUser]
     );
 
     const user = result.rows[0];
