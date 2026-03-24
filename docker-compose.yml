@@ -38,6 +38,18 @@ services:
       - POSTGRES_DB=hotdog_showdown
       - POSTGRES_USER=hotdog
       - POSTGRES_PASSWORD=${DB_PASSWORD}
+    command: >
+      postgres
+      -c shared_buffers=32MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=32MB
+      -c effective_cache_size=128MB
+      -c max_connections=20
+      -c wal_buffers=2MB
+      -c checkpoint_timeout=1min
+      -c checkpoint_completion_target=0.5
+      -c synchronous_commit=on
+    shm_size: 128m
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
