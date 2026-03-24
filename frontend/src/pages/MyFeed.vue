@@ -26,7 +26,7 @@
             </div>
             <div v-if="dog.description" class="hotdog-card-desc">{{ dog.description }}</div>
             <StarRating :hotdog-id="dog.id" :avg-stars="ratingData[dog.id]?.avg_stars || 0" :rating-count="ratingData[dog.id]?.rating_count || 0" :my-rating="ratingData[dog.id]?.my_rating || null" />
-            <CommentSection :hotdog-id="dog.id" />
+            <CommentSection :hotdog-id="dog.id" :initial-count="dog.comment_count || 0" />
             <button @click="deleteDog(dog.id)" class="btn btn-danger btn-sm" style="margin-top:10px;">Delete</button>
           </div>
         </div>
@@ -100,9 +100,11 @@ export default {
       const days = Math.floor(hours / 24);
       return `${days}d ago`;
     },
-    formatDate(str) {
-      if (!str) return '';
-      return new Date(str + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    formatDate(val) {
+      if (!val) return '';
+      const d = val instanceof Date ? val : new Date(val + 'T00:00:00');
+      if (isNaN(d)) return '';
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
   }
 };

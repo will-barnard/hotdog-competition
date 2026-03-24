@@ -53,7 +53,7 @@
               </div>
               <div v-if="dog.description" class="hotdog-card-desc">{{ dog.description }}</div>
               <StarRating :hotdog-id="dog.id" :avg-stars="ratingData[dog.id]?.avg_stars || 0" :rating-count="ratingData[dog.id]?.rating_count || 0" :my-rating="ratingData[dog.id]?.my_rating || null" />
-              <CommentSection :hotdog-id="dog.id" />
+              <CommentSection :hotdog-id="dog.id" :initial-count="dog.comment_count || 0" />
             </div>
           </div>
         </div>
@@ -116,9 +116,11 @@ export default {
       if (!str) return '';
       return new Date(str).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     },
-    formatDateShort(str) {
-      if (!str) return '';
-      return new Date(str + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    formatDateShort(val) {
+      if (!val) return '';
+      const d = val instanceof Date ? val : new Date(val + 'T00:00:00');
+      if (isNaN(d)) return '';
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     },
     timeAgo(dateStr) {
       const seconds = Math.floor((Date.now() - new Date(dateStr)) / 1000);

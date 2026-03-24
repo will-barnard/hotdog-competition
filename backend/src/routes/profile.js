@@ -48,9 +48,13 @@ router.get('/:username', async (req, res) => {
     const offset = (page - 1) * limit;
 
     const dogsResult = await pool.query(
-      `SELECT h.*, u.username, u.is_official_competitor
+      `SELECT h.*, u.username, u.is_official_competitor,
+              COALESCE(cc.cnt, 0)::int as comment_count
        FROM hotdogs h
        JOIN users u ON h.user_id = u.id
+       LEFT JOIN (
+         SELECT hotdog_id, COUNT(*)::int as cnt FROM comments GROUP BY hotdog_id
+       ) cc ON cc.hotdog_id = h.id
        WHERE h.user_id = $1
        ORDER BY h.created_at DESC
        LIMIT $2 OFFSET $3`,
