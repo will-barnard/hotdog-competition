@@ -1,6 +1,15 @@
 const { Pool } = require('pg');
 
-const pool = new Pool({
+const TRANSIENT_ERRORS = new Set([
+  'EAI_AGAIN',       // DNS resolution temporary failure
+  'ECONNREFUSED',    // postgres not accepting connections yet
+  'ECONNRESET',      // connection reset
+  'EPIPE',           // broken pipe
+  'ETIMEDOUT',       // connection timeout
+  'CONNECTION_CLOSED', // pg protocol connection closed
+]);
+
+const innerPool = new Pool({
   host: process.env.DB_HOST || 'postgres',
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'hotdog_showdown',
@@ -13,6 +22,43 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000,
   allowExitOnIdle: false,
 });
+
+function isTransient(err) {
+  if (!err) return false;
+  if (TRANSIENT_ERRORS.has(err.code)) return true;
+  if (err.code === 'ENOTFOUND') return true;
+  if (err.message && err.message.includes('terminated unexpectedly')) return true;
+  if (err.message && err.message.includes('EAI_AGAIN')) return true;
+  return false;
+}
+
+// Retry wrapper for pool.query — retries transient errors up to 3 times
+const pool = {
+  async query(...args) {
+    let lastErr;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        return await innerPool.query(...args);
+      } catch (err) {
+        lastErr = err;
+        if (isTransient(err) && attempt < 3) {
+          console.log(`Transient DB error (attempt ${attempt}/3): ${err.code || err.message} — retrying in ${attempt}s...`);
+          await new Promise(r => setTimeout(r, attempt * 1000));
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastErr;
+  },
+  // Pass through connect() for migrations which use client directly
+  connect() {
+    return innerPool.connect();
+  },
+  on(...args) {
+    return innerPool.on(...args);
+  }
+};
 
 // --- Migration definitions (module-level so they can be re-run) ---
 const migrations = [
