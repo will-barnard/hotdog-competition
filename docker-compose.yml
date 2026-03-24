@@ -63,7 +63,7 @@ services:
 
 volumes:
   postgres-data:
-    name: hotdog-showdown-postgres
+    name: hotdog-showdown-postgres-v2
   uploads:
     name: hotdog-showdown-uploads
 
