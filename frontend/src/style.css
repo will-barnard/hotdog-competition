@@ -264,6 +264,15 @@ body {
   font-size: 0.95rem;
   transition: border-color 0.2s;
   font-family: inherit;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.form-group input[type="date"] {
+  padding-right: 8px;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .form-group input:focus,
