@@ -6,7 +6,6 @@
         <div class="nav-links">
           <router-link to="/feed">Feed</router-link>
           <router-link to="/leaderboards">Leaderboards</router-link>
-          <router-link to="/rules">Rules</router-link>
           <template v-if="user">
             <router-link to="/my-feed">My Dogs</router-link>
             <router-link to="/settings">Settings</router-link>
