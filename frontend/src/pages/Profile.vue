@@ -42,20 +42,14 @@
 
       <div v-else>
         <div class="hotdog-grid">
-          <div v-for="dog in hotdogList" :key="dog.id" class="hotdog-card">
-            <img :src="dog.image_url" :alt="dog.title" class="hotdog-card-image" />
-            <div class="hotdog-card-body">
-              <div class="hotdog-card-title">{{ dog.title }}</div>
-              <div class="hotdog-card-meta">
-                <span class="hotdog-card-quantity">🌭 {{ dog.quantity }}</span>
-                <span v-if="dog.date_eaten" class="hotdog-card-date">📅 {{ formatDateShort(dog.date_eaten) }}</span>
-                <span>{{ timeAgo(dog.created_at) }}</span>
-              </div>
-              <div v-if="dog.description" class="hotdog-card-desc">{{ dog.description }}</div>
-              <StarRating :hotdog-id="dog.id" :avg-stars="ratingData[dog.id]?.avg_stars || 0" :rating-count="ratingData[dog.id]?.rating_count || 0" :my-rating="ratingData[dog.id]?.my_rating || null" />
-              <CommentSection :hotdog-id="dog.id" :initial-count="dog.comment_count || 0" />
-            </div>
-          </div>
+          <HotDogCard
+            v-for="dog in hotdogList"
+            :key="dog.id"
+            :dog="dog"
+            :rating="ratingData[dog.id] || {}"
+            :expanded-id="expandedId"
+            @expand="expandedId = $event"
+          />
         </div>
 
         <div class="pagination" v-if="pagination.pages > 1">
@@ -72,11 +66,10 @@
 
 <script>
 import { profile, ratings, auth } from '../api';
-import CommentSection from '../components/CommentSection.vue';
-import StarRating from '../components/StarRating.vue';
+import HotDogCard from '../components/HotDogCard.vue';
 
 export default {
-  components: { CommentSection, StarRating },
+  components: { HotDogCard },
   data() {
     return {
       userData: null,
@@ -86,7 +79,8 @@ export default {
       pagination: {},
       page: 1,
       loading: true,
-      error: null
+      error: null,
+      expandedId: null,
     };
   },
   async created() {
@@ -115,12 +109,6 @@ export default {
     formatDate(str) {
       if (!str) return '';
       return new Date(str).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    },
-    formatDateShort(val) {
-      if (!val) return '';
-      const d = val instanceof Date ? val : new Date(val + 'T00:00:00');
-      if (isNaN(d)) return '';
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     },
     timeAgo(dateStr) {
       const seconds = Math.floor((Date.now() - new Date(dateStr)) / 1000);

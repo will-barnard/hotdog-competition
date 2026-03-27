@@ -14,24 +14,15 @@
 
     <div v-else>
       <div class="hotdog-grid">
-        <div v-for="dog in hotdogList" :key="dog.id" class="hotdog-card">
-          <img :src="dog.image_url" :alt="dog.title" class="hotdog-card-image" />
-          <div class="hotdog-card-body">
-            <div class="hotdog-card-title">{{ dog.title }}</div>
-            <div class="hotdog-card-meta">
-              <span>
-                <router-link :to="'/profile/' + dog.username" class="profile-link">{{ dog.username }}</router-link>
-                <span v-if="dog.is_official_competitor" class="official-badge" title="Official Competitor">✔</span>
-              </span>
-              <span class="hotdog-card-quantity">🌭 {{ dog.quantity }}</span>
-              <span v-if="dog.date_eaten" class="hotdog-card-date">📅 {{ formatDate(dog.date_eaten) }}</span>
-              <span>{{ timeAgo(dog.created_at) }}</span>
-            </div>
-            <div v-if="dog.description" class="hotdog-card-desc">{{ dog.description }}</div>
-            <StarRating :hotdog-id="dog.id" :avg-stars="ratingData[dog.id]?.avg_stars || 0" :rating-count="ratingData[dog.id]?.rating_count || 0" :my-rating="ratingData[dog.id]?.my_rating || null" />
-            <CommentSection :hotdog-id="dog.id" :initial-count="dog.comment_count || 0" />
-          </div>
-        </div>
+        <HotDogCard
+          v-for="dog in hotdogList"
+          :key="dog.id"
+          :dog="dog"
+          :rating="ratingData[dog.id] || {}"
+          :expanded-id="expandedId"
+          :show-username="true"
+          @expand="expandedId = $event"
+        />
       </div>
 
       <div class="pagination" v-if="pagination.pages > 1">
@@ -47,18 +38,18 @@
 
 <script>
 import { hotdogs, ratings, auth } from '../api';
-import CommentSection from '../components/CommentSection.vue';
-import StarRating from '../components/StarRating.vue';
+import HotDogCard from '../components/HotDogCard.vue';
 
 export default {
-  components: { CommentSection, StarRating },
+  components: { HotDogCard },
   data() {
     return {
       hotdogList: [],
       ratingData: {},
       pagination: {},
       page: 1,
-      loading: true
+      loading: true,
+      expandedId: null,
     };
   },
   async created() {
@@ -67,6 +58,7 @@ export default {
   methods: {
     async loadPage(p) {
       this.loading = true;
+      this.expandedId = null;
       try {
         const data = await hotdogs.feed(p);
         this.hotdogList = data.hotdogs;
@@ -81,22 +73,6 @@ export default {
         this.loading = false;
       }
     },
-    timeAgo(dateStr) {
-      const seconds = Math.floor((Date.now() - new Date(dateStr)) / 1000);
-      if (seconds < 60) return 'just now';
-      const minutes = Math.floor(seconds / 60);
-      if (minutes < 60) return `${minutes}m ago`;
-      const hours = Math.floor(minutes / 60);
-      if (hours < 24) return `${hours}h ago`;
-      const days = Math.floor(hours / 24);
-      return `${days}d ago`;
-    },
-    formatDate(val) {
-      if (!val) return '';
-      const d = val instanceof Date ? val : new Date(val + 'T00:00:00');
-      if (isNaN(d)) return '';
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }
-  }
+  },
 };
 </script>
