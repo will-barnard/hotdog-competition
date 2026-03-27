@@ -84,8 +84,8 @@ export default {
     rankedList() {
       let rank = 1;
       return this.currentList.map((entry, i, arr) => {
-        if (i > 0 && entry.total_dogs === arr[i - 1].total_dogs && entry.total_entries === arr[i - 1].total_entries) {
-          // tied — keep same rank as previous
+        if (i > 0 && entry.total_dogs === arr[i - 1].total_dogs) {
+          // tied on dogs eaten — keep same rank as previous
         } else {
           rank = i + 1;
         }
