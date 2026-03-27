@@ -10,6 +10,13 @@
       📅 Competition: {{ formatDate(dates.competition_start) }} — {{ formatDate(dates.competition_end) }}
     </div>
 
+    <div v-if="visibleStats.length > 0" class="site-stats">
+      <div v-for="stat in visibleStats" :key="stat.key" class="site-stat">
+        <div class="site-stat-value">{{ stat.value }}</div>
+        <div class="site-stat-label">{{ stat.icon }} {{ stat.label }}</div>
+      </div>
+    </div>
+
     <div v-if="showProfilePrompt" class="profile-prompt card">
       <p>📸 <strong>Set your profile picture!</strong> Stand out on the leaderboard.</p>
       <router-link to="/settings" class="btn" style="display:inline-block; margin-top: 8px;">Go to Settings</router-link>
@@ -62,12 +69,33 @@ export default {
     return {
       isLoggedIn: auth.isLoggedIn(),
       dates: null,
-      showProfilePrompt: false
+      showProfilePrompt: false,
+      siteStats: null
     };
+  },
+  computed: {
+    visibleStats() {
+      if (!this.siteStats || !this.dates) return [];
+      const all = [
+        { key: 'home_show_total_competitors', label: 'Competitors', icon: '👥', value: this.siteStats.total_competitors },
+        { key: 'home_show_total_official_competitors', label: 'Official Competitors', icon: '🏅', value: this.siteStats.total_official_competitors },
+        { key: 'home_show_total_dogs', label: 'Hot Dogs Eaten', icon: '🌭', value: this.siteStats.total_dogs },
+        { key: 'home_show_total_entries', label: 'Log Posts', icon: '📝', value: this.siteStats.total_entries },
+        { key: 'home_show_prize_pool', label: 'Prize Pool', icon: '💰', value: '$' + this.siteStats.prize_pool }
+      ];
+      return all.filter(s => this.dates[s.key] !== 'false');
+    }
   },
   async created() {
     try {
       this.dates = await settings.get();
+      const anyVisible = [
+        'home_show_total_competitors', 'home_show_total_official_competitors',
+        'home_show_total_dogs', 'home_show_total_entries', 'home_show_prize_pool'
+      ].some(k => this.dates[k] !== 'false');
+      if (anyVisible) {
+        try { this.siteStats = await settings.getStats(); } catch (e) { /* ignore */ }
+      }
     } catch (e) {
       // ignore
     }

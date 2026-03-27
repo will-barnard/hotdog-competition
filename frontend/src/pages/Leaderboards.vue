@@ -42,9 +42,9 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(entry, i) in currentList" :key="entry.id">
-            <td class="leaderboard-rank" :class="'rank-' + (i + 1)">
-              {{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i + 1) }}
+          <tr v-for="entry in rankedList" :key="entry.id">
+            <td class="leaderboard-rank" :class="'rank-' + entry.rank">
+              {{ entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : '#' + entry.rank }}
             </td>
             <td>
               <router-link :to="'/profile/' + entry.username" class="profile-link">
@@ -80,6 +80,17 @@ export default {
   computed: {
     currentList() {
       return this.tab === 'overall' ? this.overallList : this.competitorsList;
+    },
+    rankedList() {
+      let rank = 1;
+      return this.currentList.map((entry, i, arr) => {
+        if (i > 0 && entry.total_dogs === arr[i - 1].total_dogs && entry.total_entries === arr[i - 1].total_entries) {
+          // tied — keep same rank as previous
+        } else {
+          rank = i + 1;
+        }
+        return { ...entry, rank };
+      });
     },
     formattedStart() {
       if (!this.competitionStart) return '';

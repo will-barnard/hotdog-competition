@@ -167,4 +167,30 @@ router.delete('/hotdogs/:id', authenticateToken, requireAdmin, async (req, res) 
   }
 });
 
+router.get('/stats', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const usersResult = await pool.query(`
+      SELECT
+        COUNT(*)::int as total_competitors,
+        COUNT(*) FILTER (WHERE is_official_competitor = TRUE)::int as total_official_competitors
+      FROM users
+    `);
+    const dogsResult = await pool.query(`
+      SELECT
+        COALESCE(SUM(quantity), 0)::int as total_dogs,
+        COUNT(*)::int as total_entries
+      FROM hotdogs
+    `);
+    const stats = {
+      ...usersResult.rows[0],
+      ...dogsResult.rows[0],
+      prize_pool: usersResult.rows[0].total_official_competitors * 5
+    };
+    res.json(stats);
+  } catch (err) {
+    console.error('Admin stats error:', err);
+    res.status(500).json({ error: 'Failed to load stats' });
+  }
+});
+
 module.exports = router;

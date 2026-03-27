@@ -687,6 +687,105 @@ body {
   font-size: 0.9rem;
 }
 
+/* Site Stats Bar (Home Page) */
+.site-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.site-stat {
+  flex: 1;
+  min-width: 120px;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 14px 18px;
+  text-align: center;
+  border-top: 3px solid var(--cubs-blue);
+}
+
+.site-stat-value {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: var(--cubs-blue);
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.site-stat-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* Admin Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  text-align: center;
+  border-top: 4px solid var(--cubs-blue);
+}
+
+.stat-card--prize {
+  border-top-color: var(--cubs-red);
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--cubs-blue);
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.stat-card--prize .stat-value {
+  color: var(--cubs-red);
+}
+
+.stat-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* Admin Home Stat Visibility */
+.stat-visibility-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-visibility-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-visibility-row:last-child {
+  border-bottom: none;
+}
+
+.stat-visibility-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
 /* Image Upload */
 .image-upload {
   border: 3px dashed var(--border);

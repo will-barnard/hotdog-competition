@@ -142,6 +142,10 @@ export const settings = {
     return request('/settings');
   },
 
+  async getStats() {
+    return request('/settings/stats');
+  },
+
   async update(data) {
     return request('/settings', {
       method: 'PUT',
@@ -176,6 +180,10 @@ export const profile = {
 };
 
 export const admin = {
+  async getStats() {
+    return request('/admin/stats', { headers: getHeaders(true) });
+  },
+
   async getUsers() {
     return request('/admin/users', { headers: getHeaders(true) });
   },

@@ -8,6 +8,34 @@
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="success" class="alert alert-success">{{ success }}</div>
 
+    <!-- Stats Widget -->
+    <div class="admin-section">
+      <h2>📊 Competition Stats</h2>
+      <div v-if="stats" class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">{{ stats.total_competitors }}</div>
+          <div class="stat-label">Total Competitors</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ stats.total_official_competitors }}</div>
+          <div class="stat-label">Official Competitors</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ stats.total_dogs }}</div>
+          <div class="stat-label">Hot Dogs Eaten 🌭</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ stats.total_entries }}</div>
+          <div class="stat-label">Log Posts</div>
+        </div>
+        <div class="stat-card stat-card--prize">
+          <div class="stat-value">${{ stats.prize_pool }}</div>
+          <div class="stat-label">Prize Pool 💰</div>
+        </div>
+      </div>
+      <div v-else class="card" style="color:var(--text-muted); padding:20px;">Loading stats...</div>
+    </div>
+
     <!-- Competition Settings -->
     <div class="admin-section">
       <h2>📅 Competition Settings</h2>
@@ -31,6 +59,26 @@
             {{ savingSettings ? 'Saving...' : 'Save Settings' }}
           </button>
         </form>
+      </div>
+    </div>
+
+    <!-- Home Page Stats Visibility -->
+    <div class="admin-section">
+      <h2>🏠 Home Page Stats</h2>
+      <div class="card">
+        <p style="color:var(--text-muted); margin-bottom:16px; font-size:0.9rem;">Choose which stats are displayed to all visitors on the home page.</p>
+        <div class="stat-visibility-list">
+          <div v-for="opt in homeStatOptions" :key="opt.key" class="stat-visibility-row">
+            <span class="stat-visibility-label">{{ opt.icon }} {{ opt.label }}</span>
+            <button
+              class="toggle-btn"
+              :class="{ active: homeStats[opt.key] }"
+              @click="toggleHomeStat(opt.key)"
+            >
+              {{ homeStats[opt.key] ? '✔ Visible' : 'Hidden' }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -167,25 +215,63 @@ export default {
       editModal: null,
       editForm: { title: '', quantity: 0, description: '' },
       error: null,
-      success: null
+      success: null,
+      stats: null,
+      homeStats: {
+        home_show_total_competitors: true,
+        home_show_total_official_competitors: true,
+        home_show_total_dogs: true,
+        home_show_total_entries: true,
+        home_show_prize_pool: true
+      },
+      homeStatOptions: [
+        { key: 'home_show_total_competitors', label: 'Total Competitors', icon: '👥' },
+        { key: 'home_show_total_official_competitors', label: 'Total Official Competitors', icon: '🏅' },
+        { key: 'home_show_total_dogs', label: 'Total Hot Dogs Eaten', icon: '🌭' },
+        { key: 'home_show_total_entries', label: 'Total Log Posts', icon: '📝' },
+        { key: 'home_show_prize_pool', label: 'Prize Pool', icon: '💰' }
+      ]
     };
   },
   async created() {
     await Promise.all([
       this.loadUsers(),
       this.loadHotdogs(1),
-      this.loadSettings()
+      this.loadSettings(),
+      this.loadStats()
     ]);
   },
   methods: {
+    async loadStats() {
+      try {
+        this.stats = await admin.getStats();
+      } catch (e) {
+        console.error(e);
+      }
+    },
     async loadSettings() {
       try {
         const data = await settingsApi.get();
         this.settingsForm.competition_start = this.toDatetimeLocal(data.competition_start);
         this.settingsForm.competition_end = this.toDatetimeLocal(data.competition_end);
         this.settingsForm.rules = data.rules || '';
+        // Load home stat visibility (default true if not set)
+        for (const key of Object.keys(this.homeStats)) {
+          if (data[key] !== undefined) {
+            this.homeStats[key] = data[key] !== 'false';
+          }
+        }
       } catch (e) {
         console.error(e);
+      }
+    },
+    async toggleHomeStat(key) {
+      const newVal = !this.homeStats[key];
+      try {
+        await settingsApi.update({ [key]: String(newVal) });
+        this.homeStats[key] = newVal;
+      } catch (e) {
+        this.error = e.message;
       }
     },
     toDatetimeLocal(isoStr) {
