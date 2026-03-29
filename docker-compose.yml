@@ -21,6 +21,7 @@ services:
       - DB_USER=hotdog
       - DB_PASSWORD=${DB_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
+      - RESET_SECRET=${RESET_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
