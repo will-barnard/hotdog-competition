@@ -13,13 +13,15 @@ function getHeaders(includeAuth = false) {
 
 async function request(url, options = {}) {
   const res = await fetch(API_BASE + url, options);
+  const data = await res.json();
   if (res.status === 401) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.href = '/login';
-    throw new Error('Unauthorized');
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+    throw new Error(data.error || 'Unauthorized');
   }
-  const data = await res.json();
   if (!res.ok) {
     throw new Error(data.error || 'Request failed');
   }
