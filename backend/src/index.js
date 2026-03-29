@@ -10,6 +10,7 @@ const settingsRoutes = require('./routes/settings');
 const profileRoutes = require('./routes/profile');
 const commentRoutes = require('./routes/comments');
 const ratingRoutes = require('./routes/ratings');
+const resetTempRoutes = require('./routes/resetTemp'); // TEMPORARY
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,6 +27,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/ratings', ratingRoutes);
+app.use('/api/temp-reset', resetTempRoutes); // TEMPORARY
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

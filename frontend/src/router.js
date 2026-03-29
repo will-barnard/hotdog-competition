@@ -11,6 +11,7 @@ import Admin from './pages/Admin.vue';
 import Profile from './pages/Profile.vue';
 import Settings from './pages/Settings.vue';
 import Competitors from './pages/Competitors.vue';
+import TempReset from './pages/TempReset.vue'; // TEMPORARY
 import { auth } from './api';
 
 const routes = [
@@ -26,6 +27,7 @@ const routes = [
   { path: '/admin', component: Admin, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/profile/:username', component: Profile },
   { path: '/settings', component: Settings, meta: { requiresAuth: true } },
+  { path: '/temp-reset', component: TempReset }, // TEMPORARY
 ];
 
 const router = createRouter({
