@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="hero">
+    <div class="hero" v-if="!isLoggedIn">
       <span class="hero-emoji">🌭</span>
       <h1>2026 Hotdog Showdown</h1>
       <p>How many dogs can you put down? Log your hot dogs, climb the leaderboard, and compete for glory!</p>
