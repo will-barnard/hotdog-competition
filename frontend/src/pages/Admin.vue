@@ -142,6 +142,7 @@
               <th>Title</th>
               <th>User</th>
               <th>Quantity</th>
+              <th>Flag</th>
               <th>Date</th>
               <th>Actions</th>
             </tr>
@@ -152,6 +153,11 @@
               <td>{{ dog.title }}</td>
               <td>{{ dog.username }}</td>
               <td>{{ dog.quantity }}</td>
+              <td>
+                <span v-if="dog.flag_status === 'warning'" class="flag-pill flag-pill--warning">⚠️ Warning</span>
+                <span v-else-if="dog.flag_status === 'foul'" class="flag-pill flag-pill--foul">🚫 Foul</span>
+                <span v-else style="color:var(--text-muted); font-size:0.8rem">—</span>
+              </td>
               <td>{{ new Date(dog.created_at).toLocaleDateString() }}</td>
               <td>
                 <button class="btn btn-secondary btn-sm" @click="openEditModal(dog)">Edit</button>
@@ -186,6 +192,18 @@
             <label>Description</label>
             <textarea v-model="editForm.description"></textarea>
           </div>
+          <div class="form-group">
+            <label>Flag</label>
+            <div class="flag-options">
+              <button type="button" :class="['flag-opt-btn', { active: editForm.flag_status === null }]" @click="editForm.flag_status = null; editForm.flag_text = ''">None</button>
+              <button type="button" :class="['flag-opt-btn', 'flag-opt-btn--warning', { active: editForm.flag_status === 'warning' }]" @click="editForm.flag_status = 'warning'">⚠️ Warning</button>
+              <button type="button" :class="['flag-opt-btn', 'flag-opt-btn--foul', { active: editForm.flag_status === 'foul' }]" @click="editForm.flag_status = 'foul'">🚫 Foul</button>
+            </div>
+          </div>
+          <div class="form-group" v-if="editForm.flag_status">
+            <label>Flag Message <span style="font-weight:400; color:var(--text-muted)">(optional)</span></label>
+            <input v-model="editForm.flag_text" type="text" placeholder="e.g. Score adjusted −2 for rule violation" />
+          </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="editModal = null">Cancel</button>
             <button type="submit" class="btn btn-primary">Save Changes</button>
@@ -213,7 +231,7 @@ export default {
       },
       savingSettings: false,
       editModal: null,
-      editForm: { title: '', quantity: 0, description: '' },
+      editForm: { title: '', quantity: 0, description: '', flag_status: null, flag_text: '' },
       error: null,
       success: null,
       stats: null,
@@ -338,7 +356,9 @@ export default {
       this.editForm = {
         title: dog.title,
         quantity: dog.quantity,
-        description: dog.description || ''
+        description: dog.description || '',
+        flag_status: dog.flag_status || null,
+        flag_text: dog.flag_text || ''
       };
     },
     async saveEdit() {
@@ -347,6 +367,8 @@ export default {
         this.editModal.title = this.editForm.title;
         this.editModal.quantity = this.editForm.quantity;
         this.editModal.description = this.editForm.description;
+        this.editModal.flag_status = this.editForm.flag_status;
+        this.editModal.flag_text = this.editForm.flag_text;
         this.editModal = null;
         this.success = 'Hot dog entry updated!';
       } catch (e) {

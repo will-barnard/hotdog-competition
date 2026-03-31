@@ -98,7 +98,7 @@ router.patch('/hotdogs/:id', authenticateToken, requireAdmin, async (req, res) =
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid hotdog ID' });
 
-    const { title, description, quantity } = req.body;
+    const { title, description, quantity, flag_status, flag_text } = req.body;
     const updates = [];
     const values = [];
     let paramCount = 0;
@@ -123,6 +123,27 @@ router.patch('/hotdogs/:id', authenticateToken, requireAdmin, async (req, res) =
       paramCount++;
       updates.push(`quantity = $${paramCount}`);
       values.push(qty);
+    }
+
+    if (flag_status !== undefined) {
+      if (flag_status !== null && flag_status !== 'warning' && flag_status !== 'foul') {
+        return res.status(400).json({ error: 'flag_status must be null, "warning", or "foul"' });
+      }
+      paramCount++;
+      updates.push(`flag_status = $${paramCount}`);
+      values.push(flag_status || null);
+      // Clear flag text automatically when removing a flag
+      if (!flag_status) {
+        paramCount++;
+        updates.push(`flag_text = $${paramCount}`);
+        values.push(null);
+      }
+    }
+
+    if (flag_text !== undefined && flag_status !== null) {
+      paramCount++;
+      updates.push(`flag_text = $${paramCount}`);
+      values.push(flag_text || null);
     }
 
     if (updates.length === 0) {

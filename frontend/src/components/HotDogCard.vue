@@ -13,6 +13,11 @@
       />
     </div>
 
+    <div v-if="dog.flag_status" class="flag-banner" :class="`flag-banner--${dog.flag_status}`">
+      <span>{{ dog.flag_status === 'warning' ? '⚠️ WARNING' : '🚫 FOUL' }}</span>
+      <span v-if="dog.flag_text" class="flag-text">— {{ dog.flag_text }}</span>
+    </div>
+
     <div class="hotdog-card-body">
       <div class="hotdog-card-title">{{ dog.title }}</div>
 

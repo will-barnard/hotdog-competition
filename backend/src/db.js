@@ -103,6 +103,8 @@ const migrations = [
   `],
   ['ADD COLUMN users.profile_picture', `ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture VARCHAR(500)`],
   ['ADD COLUMN hotdogs.date_eaten', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS date_eaten DATE NOT NULL DEFAULT CURRENT_DATE`],
+  ['ADD COLUMN hotdogs.flag_status', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS flag_status VARCHAR(10) DEFAULT NULL`],
+  ['ADD COLUMN hotdogs.flag_text', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS flag_text TEXT DEFAULT NULL`],
   ['CREATE comments', `
     CREATE TABLE IF NOT EXISTS comments (
       id SERIAL PRIMARY KEY,
@@ -185,11 +187,14 @@ async function verifySchema() {
       SELECT table_name, column_name FROM information_schema.columns
       WHERE table_schema = 'public' AND (
         (table_name = 'hotdogs' AND column_name = 'date_eaten') OR
+        (table_name = 'hotdogs' AND column_name = 'flag_status') OR
+        (table_name = 'hotdogs' AND column_name = 'flag_text') OR
         (table_name = 'users' AND column_name = 'profile_picture')
       )
     `);
     const cols = colCheck.rows.map(r => `${r.table_name}.${r.column_name}`);
-    if (!cols.includes('hotdogs.date_eaten') || !cols.includes('users.profile_picture')) {
+    if (!cols.includes('hotdogs.date_eaten') || !cols.includes('users.profile_picture') ||
+        !cols.includes('hotdogs.flag_status') || !cols.includes('hotdogs.flag_text')) {
       console.log('Missing columns detected, need re-migration');
       return false;
     }
