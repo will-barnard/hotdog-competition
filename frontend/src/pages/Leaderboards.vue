@@ -39,6 +39,7 @@
             <th>Competitor</th>
             <th>Hot Dogs 🌭</th>
             <th>Entries</th>
+            <th v-if="isAdmin"></th>
           </tr>
         </thead>
         <tbody>
@@ -54,16 +55,69 @@
             </td>
             <td><strong>{{ entry.total_dogs }}</strong></td>
             <td>{{ entry.total_entries }}</td>
+            <td v-if="isAdmin">
+              <button class="btn btn-secondary btn-sm" @click="openBreakdown(entry)" title="View entry breakdown">🔍</button>
+            </td>
           </tr>
         </tbody>
       </table>
       </div>
     </div>
   </div>
+
+  <!-- Admin breakdown modal -->
+  <div v-if="breakdown" class="modal-overlay" @click.self="breakdown = null">
+    <div class="modal" style="max-width:620px;">
+      <h2>🔍 Entry Breakdown — {{ breakdown.user.username }}</h2>
+      <div v-if="breakdownLoading" style="color:var(--text-muted); padding:10px 0">Loading…</div>
+      <div v-else>
+        <div class="breakdown-summary">
+          <div class="breakdown-stat">
+            <span class="breakdown-stat-label">Leaderboard total</span>
+            <span class="breakdown-stat-value">{{ breakdown.window_total }} 🌭</span>
+          </div>
+          <div class="breakdown-stat">
+            <span class="breakdown-stat-label">All-time total</span>
+            <span class="breakdown-stat-value" :style="breakdown.all_time_total !== breakdown.window_total ? 'color:#dc2626' : ''">{{ breakdown.all_time_total }} 🌭</span>
+          </div>
+          <div class="breakdown-stat" style="grid-column:1/-1">
+            <span class="breakdown-stat-label">Competition window</span>
+            <span class="breakdown-stat-value" style="font-size:0.85rem; font-weight:500">{{ fmtDate(breakdown.competition_start) }} – {{ fmtDate(breakdown.competition_end) }}</span>
+          </div>
+        </div>
+        <div v-if="breakdown.all_time_total !== breakdown.window_total" class="alert alert-error" style="margin:12px 0 4px; font-size:0.88rem">
+          ⚠️ {{ breakdown.all_time_total - breakdown.window_total }} dog{{ breakdown.all_time_total - breakdown.window_total !== 1 ? 's' : '' }} excluded — outside competition window (highlighted below)
+        </div>
+        <div class="admin-table-wrap" style="margin-top:12px">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Date Eaten</th>
+                <th>Qty</th>
+                <th>Logged</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="e in breakdown.entries" :key="e.id" :class="{ 'breakdown-out': !e.in_window }">
+                <td>{{ e.title }}</td>
+                <td>{{ fmtDate(e.date_eaten) }}<span v-if="!e.in_window" class="breakdown-out-tag">out of window</span></td>
+                <td><strong>{{ e.quantity }}</strong></td>
+                <td style="font-size:0.8rem; color:var(--text-muted)">{{ fmtDate(e.created_at) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" @click="breakdown = null">Close</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
-import { leaderboard } from '../api';
+import { leaderboard, auth } from '../api';
 
 export default {
   data() {
@@ -74,7 +128,10 @@ export default {
       loading: true,
       competitorsLoaded: false,
       notStarted: false,
-      competitionStart: null
+      competitionStart: null,
+      isAdmin: auth.getUser()?.is_admin || false,
+      breakdown: null,
+      breakdownLoading: false
     };
   },
   computed: {
@@ -130,6 +187,23 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    async openBreakdown(entry) {
+      this.breakdown = { user: entry, entries: [], window_total: 0, all_time_total: 0, competition_start: '', competition_end: '' };
+      this.breakdownLoading = true;
+      try {
+        const data = await leaderboard.breakdown(entry.id);
+        this.breakdown = data;
+      } catch (e) {
+        console.error(e);
+        this.breakdown = null;
+      } finally {
+        this.breakdownLoading = false;
+      }
+    },
+    fmtDate(str) {
+      if (!str) return '';
+      return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
   }
 };

@@ -151,11 +151,22 @@ router.get('/my-feed', authenticateToken, async (req, res) => {
     const countResult = await pool.query('SELECT COUNT(*) FROM hotdogs WHERE user_id = $1', [req.user.id]);
     const total = parseInt(countResult.rows[0].count);
 
-    const totalDogs = await pool.query('SELECT COALESCE(SUM(quantity), 0) as total FROM hotdogs WHERE user_id = $1', [req.user.id]);
+    // Sum only within the competition window so this matches the leaderboard
+    const datesResult = await pool.query("SELECT key, value FROM settings WHERE key IN ('competition_start', 'competition_end')");
+    const dates = {};
+    datesResult.rows.forEach(r => { dates[r.key] = r.value; });
+    const compStart = dates.competition_start || '1970-01-01';
+    const compEnd = dates.competition_end || '9999-12-31';
+
+    const totalDogs = await pool.query(
+      `SELECT COALESCE(SUM(quantity), 0)::int as total FROM hotdogs
+       WHERE user_id = $1 AND date_eaten >= $2::date AND date_eaten <= $3::date`,
+      [req.user.id, compStart, compEnd]
+    );
 
     res.json({
       hotdogs: result.rows,
-      total_dogs_eaten: parseInt(totalDogs.rows[0].total),
+      total_dogs_eaten: totalDogs.rows[0].total,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) }
     });
   } catch (err) {

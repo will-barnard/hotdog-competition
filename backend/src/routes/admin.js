@@ -6,14 +6,20 @@ const router = express.Router();
 
 router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
+    const datesResult = await pool.query("SELECT key, value FROM settings WHERE key IN ('competition_start', 'competition_end')");
+    const dates = {};
+    datesResult.rows.forEach(r => { dates[r.key] = r.value; });
+    const compStart = dates.competition_start || '1970-01-01';
+    const compEnd = dates.competition_end || '9999-12-31';
+
     const result = await pool.query(`
       SELECT u.id, u.username, u.email, u.is_admin, u.is_official_competitor, u.created_at,
-             COALESCE(SUM(h.quantity), 0) as total_dogs
+             COALESCE(SUM(CASE WHEN h.date_eaten >= $1::date AND h.date_eaten <= $2::date THEN h.quantity ELSE 0 END), 0)::int as total_dogs
       FROM users u
       LEFT JOIN hotdogs h ON u.id = h.user_id
       GROUP BY u.id
       ORDER BY u.created_at DESC
-    `);
+    `, [compStart, compEnd]);
     res.json(result.rows);
   } catch (err) {
     console.error('Admin get users error:', err);

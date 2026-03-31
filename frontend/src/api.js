@@ -136,6 +136,10 @@ export const leaderboard = {
 
   async allCompetitors() {
     return request('/leaderboard/all-competitors');
+  },
+
+  async breakdown(userId) {
+    return request(`/leaderboard/breakdown/${userId}`, { headers: getHeaders(true) });
   }
 };
 

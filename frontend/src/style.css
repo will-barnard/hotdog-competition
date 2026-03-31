@@ -1114,3 +1114,51 @@ body {
   color: #fff;
 }
 
+/* ── Admin leaderboard breakdown ─────────────────────── */
+.breakdown-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.breakdown-stat {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.breakdown-stat-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.breakdown-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+tr.breakdown-out td {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.breakdown-out-tag {
+  display: inline-block;
+  margin-left: 6px;
+  background: #fed7aa;
+  color: #9a3412;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
