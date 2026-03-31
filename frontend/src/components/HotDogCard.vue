@@ -134,4 +134,27 @@ export default {
   align-items: center;
   gap: 6px;
 }
+
+.card-author .comment-avatar {
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.card-author .comment-avatar img,
+.card-author .comment-avatar-fallback {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+  display: block;
+}
+
+.card-author .comment-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  background: #f0f4f8;
+}
 </style>
