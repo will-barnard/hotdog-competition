@@ -36,6 +36,34 @@
       <div v-else class="card" style="color:var(--text-muted); padding:20px;">Loading stats...</div>
     </div>
 
+    <!-- Site Warning Banner -->
+    <div class="admin-section">
+      <h2>🚨 Site Warning Banner</h2>
+      <div class="card">
+        <p style="color:var(--text-muted); margin-bottom:16px; font-size:0.9rem;">Displays a red warning bar at the top of the home page for all visitors.</p>
+        <div class="form-group">
+          <label>Warning Message</label>
+          <input v-model="warningForm.text" type="text" placeholder="e.g. Competition logging is temporarily suspended." maxlength="300" />
+        </div>
+        <div style="display:flex; align-items:center; gap:16px; margin-top:4px;">
+          <button
+            class="toggle-btn"
+            :class="{ active: warningForm.enabled }"
+            @click="warningForm.enabled = !warningForm.enabled"
+          >
+            {{ warningForm.enabled ? '✔ Banner On' : 'Banner Off' }}
+          </button>
+          <button class="btn btn-primary" :disabled="savingWarning" @click="saveWarning">
+            {{ savingWarning ? 'Saving...' : 'Save Warning' }}
+          </button>
+        </div>
+        <div v-if="warningForm.enabled && warningForm.text" class="site-warning" style="margin-top:16px; border-radius:var(--radius);">
+          <span class="site-warning-icon">⚠️</span>
+          <span>{{ warningForm.text }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Competition Settings -->
     <div class="admin-section">
       <h2>📅 Competition Settings</h2>
@@ -235,6 +263,8 @@ export default {
       error: null,
       success: null,
       stats: null,
+      warningForm: { enabled: false, text: '' },
+      savingWarning: false,
       homeStats: {
         home_show_total_competitors: true,
         home_show_total_official_competitors: true,
@@ -273,6 +303,8 @@ export default {
         this.settingsForm.competition_start = this.toDatetimeLocal(data.competition_start);
         this.settingsForm.competition_end = this.toDatetimeLocal(data.competition_end);
         this.settingsForm.rules = data.rules || '';
+        this.warningForm.enabled = data.site_warning_enabled === 'true';
+        this.warningForm.text = data.site_warning_text || '';
         // Load home stat visibility (default true if not set)
         for (const key of Object.keys(this.homeStats)) {
           if (data[key] !== undefined) {
@@ -290,6 +322,22 @@ export default {
         this.homeStats[key] = newVal;
       } catch (e) {
         this.error = e.message;
+      }
+    },
+    async saveWarning() {
+      this.savingWarning = true;
+      this.error = null;
+      this.success = null;
+      try {
+        await settingsApi.update({
+          site_warning_enabled: String(this.warningForm.enabled),
+          site_warning_text: this.warningForm.text
+        });
+        this.success = 'Warning banner saved!';
+      } catch (e) {
+        this.error = e.message;
+      } finally {
+        this.savingWarning = false;
       }
     },
     toDatetimeLocal(isoStr) {

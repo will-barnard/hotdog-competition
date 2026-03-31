@@ -1,5 +1,10 @@
 <template>
   <div>
+    <div v-if="warningEnabled && warningText" class="site-warning">
+      <span class="site-warning-icon">⚠️</span>
+      <span>{{ warningText }}</span>
+    </div>
+
     <div class="hero" v-if="!isLoggedIn">
       <span class="hero-emoji">🌭</span>
       <h1>2026 Hotdog Showdown</h1>
@@ -70,7 +75,9 @@ export default {
       isLoggedIn: auth.isLoggedIn(),
       dates: null,
       showProfilePrompt: false,
-      siteStats: null
+      siteStats: null,
+      warningEnabled: false,
+      warningText: ''
     };
   },
   computed: {
@@ -89,6 +96,8 @@ export default {
   async created() {
     try {
       this.dates = await settings.get();
+      this.warningEnabled = this.dates.site_warning_enabled === 'true';
+      this.warningText = this.dates.site_warning_text || '';
       const anyVisible = [
         'home_show_total_competitors', 'home_show_total_official_competitors',
         'home_show_total_dogs', 'home_show_total_entries', 'home_show_prize_pool'
