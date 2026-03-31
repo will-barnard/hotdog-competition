@@ -22,7 +22,11 @@
       <div class="hotdog-card-title">{{ dog.title }}</div>
 
       <div class="hotdog-card-meta">
-        <span v-if="showUsername">
+        <span v-if="showUsername" class="card-author">
+          <router-link :to="'/profile/' + dog.username" class="comment-avatar">
+            <img v-if="dog.profile_picture" :src="dog.profile_picture" :alt="dog.username" />
+            <span v-else class="comment-avatar-fallback">🌭</span>
+          </router-link>
           <router-link :to="'/profile/' + dog.username" class="profile-link">{{ dog.username }}</router-link>
           <span v-if="dog.is_official_competitor" class="official-badge" title="Official Competitor">✔</span>
         </span>
@@ -123,5 +127,11 @@ export default {
 
 .read-more-btn:hover {
   text-decoration: underline;
+}
+
+.card-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 </style>

@@ -73,7 +73,7 @@ router.get('/hotdogs', authenticateToken, requireAdmin, async (req, res) => {
     const offset = (page - 1) * limit;
 
     const result = await pool.query(`
-      SELECT h.*, u.username, u.is_official_competitor
+      SELECT h.*, u.username, u.is_official_competitor, u.profile_picture
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
       ORDER BY h.created_at DESC

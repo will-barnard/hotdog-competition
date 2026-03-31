@@ -105,7 +105,7 @@ router.get('/feed', async (req, res) => {
     const offset = (page - 1) * limit;
 
     const result = await pool.query(`
-      SELECT h.*, u.username, u.is_official_competitor,
+      SELECT h.*, u.username, u.is_official_competitor, u.profile_picture,
              COALESCE(cc.cnt, 0)::int as comment_count
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
@@ -136,7 +136,7 @@ router.get('/my-feed', authenticateToken, async (req, res) => {
     const offset = (page - 1) * limit;
 
     const result = await pool.query(`
-      SELECT h.*, u.username, u.is_official_competitor,
+      SELECT h.*, u.username, u.is_official_competitor, u.profile_picture,
              COALESCE(cc.cnt, 0)::int as comment_count
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
@@ -170,7 +170,7 @@ router.get('/:id', async (req, res) => {
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
 
     const result = await pool.query(`
-      SELECT h.*, u.username, u.is_official_competitor
+      SELECT h.*, u.username, u.is_official_competitor, u.profile_picture
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
       WHERE h.id = $1
