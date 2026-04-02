@@ -42,7 +42,7 @@ router.post('/register', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, username: user.username, is_admin: user.is_admin, is_official_competitor: user.is_official_competitor },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '2y' }
     );
 
     res.status(201).json({ user, token });
@@ -79,7 +79,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, username: user.username, is_admin: user.is_admin, is_official_competitor: user.is_official_competitor },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '2y' }
     );
 
     const { password_hash, ...userWithoutPassword } = user;
