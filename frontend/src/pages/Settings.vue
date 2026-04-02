@@ -29,6 +29,50 @@
       <div v-if="usernameError" class="error-msg">{{ usernameError }}</div>
     </div>
 
+    <div class="card" style="max-width: 500px; margin-bottom: 20px;">
+      <h3 style="margin-top:0;">Change Password</h3>
+
+      <div class="form-group">
+        <label for="current-password" class="form-label">Current password</label>
+        <input
+          id="current-password"
+          v-model="currentPassword"
+          type="password"
+          placeholder="Enter current password"
+          class="form-input"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="new-password" class="form-label">New password</label>
+        <input
+          id="new-password"
+          v-model="newPassword"
+          type="password"
+          placeholder="Enter new password (min 6 characters)"
+          class="form-input"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="confirm-password" class="form-label">Confirm new password</label>
+        <input
+          id="confirm-password"
+          v-model="confirmPassword"
+          type="password"
+          placeholder="Confirm new password"
+          class="form-input"
+        />
+      </div>
+
+      <button class="btn" @click="changePassword" :disabled="!currentPassword || !newPassword || !confirmPassword || savingPassword">
+        {{ savingPassword ? 'Saving...' : 'Change Password' }}
+      </button>
+
+      <div v-if="passwordSuccess" class="success-msg">{{ passwordSuccess }}</div>
+      <div v-if="passwordError" class="error-msg">{{ passwordError }}</div>
+    </div>
+
     <div class="card" style="max-width: 500px;">
       <h3 style="margin-top:0;">Profile Picture</h3>
 
@@ -69,6 +113,12 @@ export default {
       savingUsername: false,
       usernameSuccess: '',
       usernameError: '',
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+      savingPassword: false,
+      passwordSuccess: '',
+      passwordError: '',
       profilePicture: null,
       selectedFile: null,
       preview: null,
@@ -106,6 +156,30 @@ export default {
         this.usernameError = e.message || 'Failed to update username';
       } finally {
         this.savingUsername = false;
+      }
+    },
+    async changePassword() {
+      this.passwordSuccess = '';
+      this.passwordError = '';
+      if (this.newPassword !== this.confirmPassword) {
+        this.passwordError = 'New passwords do not match';
+        return;
+      }
+      if (this.newPassword.length < 6) {
+        this.passwordError = 'New password must be at least 6 characters';
+        return;
+      }
+      this.savingPassword = true;
+      try {
+        await auth.changePassword(this.currentPassword, this.newPassword);
+        this.currentPassword = '';
+        this.newPassword = '';
+        this.confirmPassword = '';
+        this.passwordSuccess = 'Password changed successfully!';
+      } catch (e) {
+        this.passwordError = e.message || 'Failed to change password';
+      } finally {
+        this.savingPassword = false;
       }
     },
     onFileSelect(e) {

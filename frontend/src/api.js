@@ -63,6 +63,14 @@ export const auth = {
     });
   },
 
+  async changePassword(currentPassword, newPassword) {
+    return request('/auth/me/password', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+  },
+
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
