@@ -175,10 +175,12 @@ export default {
 }
 
 .photo-hidden-icon {
+  display: block;
   font-size: 2.5rem;
 }
 
 .photo-hidden-label {
+  display: block;
   font-size: 0.85rem;
   color: #999;
   font-style: italic;
