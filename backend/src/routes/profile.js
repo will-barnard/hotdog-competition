@@ -48,10 +48,7 @@ router.get('/:username', async (req, res) => {
     const offset = (page - 1) * limit;
 
     const dogsResult = await pool.query(
-      `SELECT h.id, h.user_id, h.title, h.description, h.quantity,
-              CASE WHEN h.photo_hidden THEN NULL ELSE h.image_url END as image_url,
-              h.date_eaten, h.created_at, h.updated_at, h.flag_status, h.flag_text, h.photo_hidden,
-              u.username, u.is_official_competitor, u.profile_picture,
+      `SELECT h.*, u.username, u.is_official_competitor, u.profile_picture,
               COALESCE(cc.cnt, 0)::int as comment_count
        FROM hotdogs h
        JOIN users u ON h.user_id = u.id
@@ -63,6 +60,10 @@ router.get('/:username', async (req, res) => {
        LIMIT $2 OFFSET $3`,
       [user.id, limit, offset]
     );
+
+    for (const row of dogsResult.rows) {
+      if (row.photo_hidden) row.image_url = null;
+    }
 
     const countResult = await pool.query('SELECT COUNT(*) FROM hotdogs WHERE user_id = $1', [user.id]);
     const total = parseInt(countResult.rows[0].count);

@@ -105,10 +105,7 @@ router.get('/feed', async (req, res) => {
     const offset = (page - 1) * limit;
 
     const result = await pool.query(`
-      SELECT h.id, h.user_id, h.title, h.description, h.quantity,
-             CASE WHEN h.photo_hidden THEN NULL ELSE h.image_url END as image_url,
-             h.date_eaten, h.created_at, h.updated_at, h.flag_status, h.flag_text, h.photo_hidden,
-             u.username, u.is_official_competitor, u.profile_picture,
+      SELECT h.*, u.username, u.is_official_competitor, u.profile_picture,
              COALESCE(cc.cnt, 0)::int as comment_count
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
@@ -121,6 +118,10 @@ router.get('/feed', async (req, res) => {
 
     const countResult = await pool.query('SELECT COUNT(*) FROM hotdogs');
     const total = parseInt(countResult.rows[0].count);
+
+    for (const row of result.rows) {
+      if (row.photo_hidden) row.image_url = null;
+    }
 
     res.json({
       hotdogs: result.rows,
@@ -139,10 +140,7 @@ router.get('/my-feed', authenticateToken, async (req, res) => {
     const offset = (page - 1) * limit;
 
     const result = await pool.query(`
-      SELECT h.id, h.user_id, h.title, h.description, h.quantity,
-             CASE WHEN h.photo_hidden THEN NULL ELSE h.image_url END as image_url,
-             h.date_eaten, h.created_at, h.updated_at, h.flag_status, h.flag_text, h.photo_hidden,
-             u.username, u.is_official_competitor, u.profile_picture,
+      SELECT h.*, u.username, u.is_official_competitor, u.profile_picture,
              COALESCE(cc.cnt, 0)::int as comment_count
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
@@ -156,6 +154,10 @@ router.get('/my-feed', authenticateToken, async (req, res) => {
 
     const countResult = await pool.query('SELECT COUNT(*) FROM hotdogs WHERE user_id = $1', [req.user.id]);
     const total = parseInt(countResult.rows[0].count);
+
+    for (const row of result.rows) {
+      if (row.photo_hidden) row.image_url = null;
+    }
 
     // Sum only within the competition window so this matches the leaderboard
     const datesResult = await pool.query("SELECT key, value FROM settings WHERE key IN ('competition_start', 'competition_end')");
@@ -187,10 +189,7 @@ router.get('/:id', async (req, res) => {
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
 
     const result = await pool.query(`
-      SELECT h.id, h.user_id, h.title, h.description, h.quantity,
-             CASE WHEN h.photo_hidden THEN NULL ELSE h.image_url END as image_url,
-             h.date_eaten, h.created_at, h.updated_at, h.flag_status, h.flag_text, h.photo_hidden,
-             u.username, u.is_official_competitor, u.profile_picture
+      SELECT h.*, u.username, u.is_official_competitor, u.profile_picture
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
       WHERE h.id = $1
@@ -200,7 +199,10 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Hot dog not found' });
     }
 
-    res.json(result.rows[0]);
+    const row = result.rows[0];
+    if (row.photo_hidden) row.image_url = null;
+
+    res.json(row);
   } catch (err) {
     console.error('Get hotdog error:', err);
     res.status(500).json({ error: 'Failed to load hot dog' });
