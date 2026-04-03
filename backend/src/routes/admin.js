@@ -104,7 +104,7 @@ router.patch('/hotdogs/:id', authenticateToken, requireAdmin, async (req, res) =
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid hotdog ID' });
 
-    const { title, description, quantity, flag_status, flag_text } = req.body;
+    const { title, description, quantity, flag_status, flag_text, photo_hidden } = req.body;
     const updates = [];
     const values = [];
     let paramCount = 0;
@@ -150,6 +150,12 @@ router.patch('/hotdogs/:id', authenticateToken, requireAdmin, async (req, res) =
       paramCount++;
       updates.push(`flag_text = $${paramCount}`);
       values.push(flag_text || null);
+    }
+
+    if (typeof photo_hidden === 'boolean') {
+      paramCount++;
+      updates.push(`photo_hidden = $${paramCount}`);
+      values.push(photo_hidden);
     }
 
     if (updates.length === 0) {

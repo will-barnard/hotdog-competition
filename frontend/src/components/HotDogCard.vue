@@ -2,15 +2,20 @@
   <div class="hotdog-card">
     <div
       class="img-wrap"
-      :style="{ cursor: isExpanded ? 'zoom-out' : 'zoom-in' }"
-      @click="toggleExpand"
+      :style="{ cursor: dog.image_url ? (isExpanded ? 'zoom-out' : 'zoom-in') : 'default' }"
+      @click="dog.image_url && toggleExpand()"
     >
       <img
+        v-if="dog.image_url"
         :src="dog.image_url"
         :alt="dog.title"
         class="hotdog-card-image"
         :style="isExpanded ? { height: 'auto', maxHeight: '80vh', objectFit: 'contain', background: '#111' } : {}"
       />
+      <div v-else class="photo-hidden-placeholder">
+        <span class="photo-hidden-icon">🙈</span>
+        <span class="photo-hidden-label">Photo hidden by admin</span>
+      </div>
     </div>
 
     <div v-if="dog.flag_status" class="flag-banner" :class="`flag-banner--${dog.flag_status}`">
@@ -156,5 +161,26 @@ export default {
   justify-content: center;
   font-size: 0.9rem;
   background: #f0f4f8;
+}
+
+.photo-hidden-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 220px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.photo-hidden-icon {
+  font-size: 2.5rem;
+}
+
+.photo-hidden-label {
+  font-size: 0.85rem;
+  color: #999;
+  font-style: italic;
 }
 </style>

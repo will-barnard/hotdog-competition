@@ -171,6 +171,7 @@
               <th>User</th>
               <th>Quantity</th>
               <th>Flag</th>
+              <th>Photo</th>
               <th>Date</th>
               <th>Actions</th>
             </tr>
@@ -185,6 +186,10 @@
                 <span v-if="dog.flag_status === 'warning'" class="flag-pill flag-pill--warning">⚠️ Warning</span>
                 <span v-else-if="dog.flag_status === 'foul'" class="flag-pill flag-pill--foul">🚫 Foul</span>
                 <span v-else style="color:var(--text-muted); font-size:0.8rem">—</span>
+              </td>
+              <td>
+                <span v-if="dog.photo_hidden" class="flag-pill flag-pill--foul">🙈 Hidden</span>
+                <span v-else style="color:var(--text-muted); font-size:0.8rem">Visible</span>
               </td>
               <td>{{ new Date(dog.created_at).toLocaleDateString() }}</td>
               <td>
@@ -232,6 +237,20 @@
             <label>Flag Message <span style="font-weight:400; color:var(--text-muted)">(optional)</span></label>
             <input v-model="editForm.flag_text" type="text" placeholder="e.g. Score adjusted −2 for rule violation" />
           </div>
+          <div class="form-group">
+            <label>Photo Visibility</label>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <button
+                type="button"
+                class="toggle-btn"
+                :class="{ active: editForm.photo_hidden }"
+                @click="editForm.photo_hidden = !editForm.photo_hidden"
+              >
+                {{ editForm.photo_hidden ? '🙈 Photo Hidden' : '👁 Photo Visible' }}
+              </button>
+              <span style="font-size:0.85rem; color:var(--text-muted);">Hidden photos are replaced with a placeholder for all users.</span>
+            </div>
+          </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="editModal = null">Cancel</button>
             <button type="submit" class="btn btn-primary">Save Changes</button>
@@ -259,7 +278,7 @@ export default {
       },
       savingSettings: false,
       editModal: null,
-      editForm: { title: '', quantity: 0, description: '', flag_status: null, flag_text: '' },
+      editForm: { title: '', quantity: 0, description: '', flag_status: null, flag_text: '', photo_hidden: false },
       error: null,
       success: null,
       stats: null,
@@ -406,7 +425,8 @@ export default {
         quantity: dog.quantity,
         description: dog.description || '',
         flag_status: dog.flag_status || null,
-        flag_text: dog.flag_text || ''
+        flag_text: dog.flag_text || '',
+        photo_hidden: !!dog.photo_hidden
       };
     },
     async saveEdit() {
@@ -417,6 +437,7 @@ export default {
         this.editModal.description = this.editForm.description;
         this.editModal.flag_status = this.editForm.flag_status;
         this.editModal.flag_text = this.editForm.flag_text;
+        this.editModal.photo_hidden = this.editForm.photo_hidden;
         this.editModal = null;
         this.success = 'Hot dog entry updated!';
       } catch (e) {

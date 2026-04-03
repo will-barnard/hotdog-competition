@@ -105,6 +105,7 @@ const migrations = [
   ['ADD COLUMN hotdogs.date_eaten', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS date_eaten DATE NOT NULL DEFAULT CURRENT_DATE`],
   ['ADD COLUMN hotdogs.flag_status', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS flag_status VARCHAR(10) DEFAULT NULL`],
   ['ADD COLUMN hotdogs.flag_text', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS flag_text TEXT DEFAULT NULL`],
+  ['ADD COLUMN hotdogs.photo_hidden', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS photo_hidden BOOLEAN NOT NULL DEFAULT FALSE`],
   ['CREATE comments', `
     CREATE TABLE IF NOT EXISTS comments (
       id SERIAL PRIMARY KEY,
