@@ -190,12 +190,14 @@ async function verifySchema() {
         (table_name = 'hotdogs' AND column_name = 'date_eaten') OR
         (table_name = 'hotdogs' AND column_name = 'flag_status') OR
         (table_name = 'hotdogs' AND column_name = 'flag_text') OR
+        (table_name = 'hotdogs' AND column_name = 'photo_hidden') OR
         (table_name = 'users' AND column_name = 'profile_picture')
       )
     `);
     const cols = colCheck.rows.map(r => `${r.table_name}.${r.column_name}`);
     if (!cols.includes('hotdogs.date_eaten') || !cols.includes('users.profile_picture') ||
-        !cols.includes('hotdogs.flag_status') || !cols.includes('hotdogs.flag_text')) {
+        !cols.includes('hotdogs.flag_status') || !cols.includes('hotdogs.flag_text') ||
+        !cols.includes('hotdogs.photo_hidden')) {
       console.log('Missing columns detected, need re-migration');
       return false;
     }
