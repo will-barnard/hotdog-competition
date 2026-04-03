@@ -4,6 +4,18 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Self-healing: ensure photo_hidden column exists before any attempt to read/write it
+let photoHiddenEnsured = false;
+async function ensurePhotoHiddenColumn() {
+  if (photoHiddenEnsured) return;
+  try {
+    await pool.query('ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS photo_hidden BOOLEAN NOT NULL DEFAULT FALSE');
+    photoHiddenEnsured = true;
+  } catch (e) {
+    console.error('ensurePhotoHiddenColumn failed:', e.message);
+  }
+}
+
 router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const datesResult = await pool.query("SELECT key, value FROM settings WHERE key IN ('competition_start', 'competition_end')");
@@ -101,6 +113,8 @@ router.get('/hotdogs', authenticateToken, requireAdmin, async (req, res) => {
 
 router.patch('/hotdogs/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
+    await ensurePhotoHiddenColumn();
+
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid hotdog ID' });
 
