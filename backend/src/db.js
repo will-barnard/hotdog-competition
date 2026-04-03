@@ -17,8 +17,8 @@ const innerPool = new Pool({
   password: process.env.DB_PASSWORD || 'hotdog_secret',
   max: 10,
   keepAlive: true,
-  keepAliveInitialDelayMillis: 10000,
-  idleTimeoutMillis: 10000,
+  keepAliveInitialDelayMillis: 30000,
+  idleTimeoutMillis: 60000,       // idle connections held for 60s before removal (was 10s)
   connectionTimeoutMillis: 10000,
   allowExitOnIdle: false,
 });
@@ -32,18 +32,20 @@ function isTransient(err) {
   return false;
 }
 
-// Retry wrapper for pool.query — retries transient errors up to 3 times
+// Retry wrapper for pool.query — retries transient errors with exponential backoff
+const RETRY_DELAYS_MS = [500, 1000, 2000, 4000, 8000]; // up to ~15s total
 const pool = {
   async query(...args) {
     let lastErr;
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 0; attempt < RETRY_DELAYS_MS.length + 1; attempt++) {
       try {
         return await innerPool.query(...args);
       } catch (err) {
         lastErr = err;
-        if (isTransient(err) && attempt < 3) {
-          console.log(`Transient DB error (attempt ${attempt}/3): ${err.code || err.message} — retrying in ${attempt}s...`);
-          await new Promise(r => setTimeout(r, attempt * 1000));
+        if (isTransient(err) && attempt < RETRY_DELAYS_MS.length) {
+          const delay = RETRY_DELAYS_MS[attempt];
+          console.log(`Transient DB error (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length + 1}): ${err.code || err.message} — retrying in ${delay}ms...`);
+          await new Promise(r => setTimeout(r, delay));
           continue;
         }
         throw err;
@@ -245,6 +247,19 @@ function scheduleReinit() {
   }, 5000);
 }
 
+// Periodic heartbeat: every 30s verify the connection is alive and schema is intact.
+// This catches postgres restarts proactively before a user query hits a dead connection.
+function startHeartbeat() {
+  setInterval(async () => {
+    try {
+      await innerPool.query('SELECT 1');
+    } catch (err) {
+      console.error('Heartbeat failed:', err.message);
+      scheduleReinit();
+    }
+  }, 30000);
+}
+
 // --- Initial startup ---
 
 async function initialize() {
@@ -257,6 +272,7 @@ async function initialize() {
   }
 
   console.log('Database initialized successfully');
+  startHeartbeat();
 }
 
 module.exports = { pool, initialize };
