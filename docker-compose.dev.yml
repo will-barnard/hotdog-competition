@@ -1,0 +1,71 @@
+services:
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_BASE=http://localhost:3001
+    depends_on:
+      - backend
+    networks:
+      - dev-internal
+
+  backend:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - dev-uploads:/app/uploads
+    environment:
+      - PORT=3001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=hotdog_showdown
+      - DB_USER=hotdog
+      - DB_PASSWORD=${DB_PASSWORD:-hotdog_dev_secret}
+      - JWT_SECRET=${JWT_SECRET:-dev_jwt_secret_not_for_production}
+      - RESET_SECRET=${RESET_SECRET:-dev_reset_secret_not_for_production}
+      - NODE_ENV=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dev-internal
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=hotdog_showdown
+      - POSTGRES_USER=hotdog
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-hotdog_dev_secret}
+    shm_size: 128m
+    volumes:
+      - dev-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hotdog -d hotdog_showdown"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - dev-internal
+
+volumes:
+  dev-postgres-data:
+    name: hotdog-showdown-dev-postgres
+  dev-uploads:
+    name: hotdog-showdown-dev-uploads
+
+networks:
+  dev-internal:
