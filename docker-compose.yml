@@ -22,6 +22,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - RESET_SECRET=${RESET_SECRET}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://hotdogcompetition.com}
     depends_on:
       postgres:
         condition: service_healthy

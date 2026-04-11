@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const sharp = require('sharp');
+const exifr = require('exifr');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -80,9 +81,22 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
 
     const imageUrl = `/uploads/${filename}`;
 
+    // Extract EXIF date and compare to claimed date_eaten
+    let dateMismatch = null; // null = no EXIF data, true = mismatch, false = match
+    try {
+      const exif = await exifr.parse(req.file.buffer, { pick: ['DateTimeOriginal', 'CreateDate'] });
+      const exifDate = exif?.DateTimeOriginal || exif?.CreateDate;
+      if (exifDate) {
+        const exifDay = new Date(exifDate).toISOString().slice(0, 10);
+        dateMismatch = exifDay !== date_eaten;
+      }
+    } catch {
+      // No EXIF or parse failure — leave as null
+    }
+
     const result = await pool.query(
-      'INSERT INTO hotdogs (user_id, title, description, quantity, image_url, date_eaten) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [req.user.id, title, description || null, qty, imageUrl, date_eaten]
+      'INSERT INTO hotdogs (user_id, title, description, quantity, image_url, date_eaten, date_mismatch) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [req.user.id, title, description || null, qty, imageUrl, date_eaten, dateMismatch]
     );
 
     const hotdog = result.rows[0];

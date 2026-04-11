@@ -173,6 +173,7 @@
               <th>Flag</th>
               <th>Photo</th>
               <th>Date</th>
+              <th>EXIF</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -192,6 +193,11 @@
                 <span v-else style="color:var(--text-muted); font-size:0.8rem">Visible</span>
               </td>
               <td>{{ new Date(dog.created_at).toLocaleDateString() }}</td>
+              <td>
+                <span v-if="dog.date_mismatch === true" class="flag-pill flag-pill--warning" title="Photo EXIF date does not match claimed date eaten">📸 Mismatch</span>
+                <span v-else-if="dog.date_mismatch === false" style="color:var(--success); font-size:0.8rem" title="Photo EXIF date matches claimed date eaten">✓ Match</span>
+                <span v-else style="color:var(--text-muted); font-size:0.8rem" title="No EXIF date in photo">—</span>
+              </td>
               <td>
                 <button class="btn btn-secondary btn-sm" @click="openEditModal(dog)">Edit</button>
                 <button class="btn btn-danger btn-sm" style="margin-left:4px;" @click="deleteHotdog(dog.id)">Delete</button>
