@@ -1,12 +1,14 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 
+const backendUrl = process.env.VITE_BACKEND_URL || 'http://localhost:3001';
+
 export default defineConfig({
   plugins: [vue()],
   server: {
     proxy: {
-      '/api': 'http://localhost:3001',
-      '/uploads': 'http://localhost:3001'
+      '/api': backendUrl,
+      '/uploads': backendUrl
     }
   }
 });
