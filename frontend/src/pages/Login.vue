@@ -17,6 +17,9 @@
         </button>
       </form>
       <p style="text-align:center; margin-top:16px; color:var(--text-muted); font-size:0.9rem">
+        <router-link to="/forgot-password" style="color:var(--cubs-blue); font-weight:600">Forgot password?</router-link>
+      </p>
+      <p style="text-align:center; margin-top:8px; color:var(--text-muted); font-size:0.9rem">
         Don't have an account? <router-link to="/register" style="color:var(--cubs-blue); font-weight:600">Sign up</router-link>
       </p>
     </div>

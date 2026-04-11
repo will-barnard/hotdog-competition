@@ -21,7 +21,8 @@ services:
       - DB_USER=hotdog
       - DB_PASSWORD=${DB_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - RESET_SECRET=${RESET_SECRET}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://hotdogcompetition.com}
     depends_on:
       postgres:

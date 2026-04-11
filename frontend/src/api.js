@@ -282,3 +282,47 @@ export const ratings = {
     });
   }
 };
+
+export const passwordReset = {
+  async requestReset(email) {
+    return request('/password-reset/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+  },
+
+  async reset(token, newPassword) {
+    return request('/password-reset/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword })
+    });
+  }
+};
+
+export const adminEmail = {
+  async getStatus() {
+    return request('/admin/email/status', { headers: getHeaders(true) });
+  },
+
+  async sendBulk(subject, html, group) {
+    return request('/admin/email/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
+      body: JSON.stringify({ subject, html, group })
+    });
+  },
+
+  async getWelcomeConfig() {
+    return request('/admin/email/welcome', { headers: getHeaders(true) });
+  },
+
+  async updateWelcomeConfig(config) {
+    return request('/admin/email/welcome', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
+      body: JSON.stringify(config)
+    });
+  }
+};

@@ -128,6 +128,42 @@ const migrations = [
       UNIQUE (hotdog_id, user_id)
     )
   `],
+  ['CREATE password_reset_tokens', `
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      token VARCHAR(255) UNIQUE NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `],
+  ['CREATE email_daily_log', `
+    CREATE TABLE IF NOT EXISTS email_daily_log (
+      log_date DATE PRIMARY KEY,
+      email_count INTEGER NOT NULL DEFAULT 0
+    )
+  `],
+  ['CREATE email_queue', `
+    CREATE TABLE IF NOT EXISTS email_queue (
+      id SERIAL PRIMARY KEY,
+      recipient VARCHAR(255) NOT NULL,
+      subject TEXT NOT NULL,
+      html_body TEXT NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      error TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      sent_at TIMESTAMP
+    )
+  `],
+  ['CREATE welcome_email_log', `
+    CREATE TABLE IF NOT EXISTS welcome_email_log (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+      status VARCHAR(20) NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `],
 ];
 
 // --- Helpers ---
@@ -178,11 +214,11 @@ async function verifySchema() {
     // Verify tables exist
     const tableCheck = await client.query(`
       SELECT table_name FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name IN ('users', 'hotdogs', 'settings', 'comments', 'ratings')
+      WHERE table_schema = 'public' AND table_name IN ('users', 'hotdogs', 'settings', 'comments', 'ratings', 'password_reset_tokens', 'email_daily_log', 'email_queue', 'welcome_email_log')
     `);
     const tables = tableCheck.rows.map(r => r.table_name);
     console.log('Verified tables:', tables.join(', '));
-    const requiredTables = ['users', 'hotdogs', 'settings', 'comments', 'ratings'];
+    const requiredTables = ['users', 'hotdogs', 'settings', 'comments', 'ratings', 'password_reset_tokens', 'email_daily_log', 'email_queue', 'welcome_email_log'];
     const missingTables = requiredTables.filter(t => !tables.includes(t));
     if (missingTables.length > 0) return false;
 

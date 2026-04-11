@@ -11,7 +11,10 @@ import Admin from './pages/Admin.vue';
 import Profile from './pages/Profile.vue';
 import Settings from './pages/Settings.vue';
 import Competitors from './pages/Competitors.vue';
-import TempReset from './pages/TempReset.vue'; // TEMPORARY
+import ForgotPassword from './pages/ForgotPassword.vue';
+import ResetPassword from './pages/ResetPassword.vue';
+import BulkEmail from './pages/BulkEmail.vue';
+import WelcomeEmail from './pages/WelcomeEmail.vue';
 import { auth } from './api';
 
 const routes = [
@@ -27,7 +30,10 @@ const routes = [
   { path: '/admin', component: Admin, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/profile/:username', component: Profile },
   { path: '/settings', component: Settings, meta: { requiresAuth: true } },
-  { path: '/temp-reset', component: TempReset }, // TEMPORARY
+  { path: '/forgot-password', component: ForgotPassword },
+  { path: '/reset-password', component: ResetPassword },
+  { path: '/admin/bulk-email', component: BulkEmail, meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: '/admin/welcome-email', component: WelcomeEmail, meta: { requiresAuth: true, requiresAdmin: true } },
 ];
 
 const router = createRouter({

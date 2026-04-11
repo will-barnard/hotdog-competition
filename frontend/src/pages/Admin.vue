@@ -36,6 +36,15 @@
       <div v-else class="card" style="color:var(--text-muted); padding:20px;">Loading stats...</div>
     </div>
 
+    <!-- Email Tools -->
+    <div class="admin-section">
+      <h2>📧 Email Tools</h2>
+      <div style="display:flex; flex-wrap:wrap; gap:12px;">
+        <router-link to="/admin/bulk-email" class="btn btn-primary">📧 Bulk Emailer</router-link>
+        <router-link to="/admin/welcome-email" class="btn btn-primary">👋 Welcome Email</router-link>
+      </div>
+    </div>
+
     <!-- Site Warning Banner -->
     <div class="admin-section">
       <h2>🚨 Site Warning Banner</h2>

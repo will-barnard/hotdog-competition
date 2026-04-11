@@ -11,7 +11,9 @@ const settingsRoutes = require('./routes/settings');
 const profileRoutes = require('./routes/profile');
 const commentRoutes = require('./routes/comments');
 const ratingRoutes = require('./routes/ratings');
-const resetTempRoutes = require('./routes/resetTemp'); // TEMPORARY
+const passwordResetRoutes = require('./routes/passwordReset');
+const adminEmailRoutes = require('./routes/adminEmail');
+const emailService = require('./services/email');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -55,7 +57,7 @@ const hotdogPostLimiter = rateLimit({
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
-app.use('/api/temp-reset', authLimiter);
+app.use('/api/password-reset', authLimiter);
 app.use('/api/', generalLimiter);
 app.post('/api/hotdogs', hotdogPostLimiter);
 
@@ -67,7 +69,8 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/ratings', ratingRoutes);
-app.use('/api/temp-reset', resetTempRoutes); // TEMPORARY
+app.use('/api/password-reset', passwordResetRoutes);
+app.use('/api/admin/email', adminEmailRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -75,6 +78,8 @@ app.get('/api/health', (req, res) => {
 
 async function start() {
   await db.initialize();
+  emailService.init();
+  emailService.startProcessor();
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Hotdog Showdown API running on port ${PORT}`);
   });
