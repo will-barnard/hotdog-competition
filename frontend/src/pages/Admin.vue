@@ -54,6 +54,13 @@
           <label>Warning Message</label>
           <input v-model="warningForm.text" type="text" placeholder="e.g. Competition logging is temporarily suspended." maxlength="300" />
         </div>
+        <div class="form-group" style="margin-top:12px;">
+          <label>Style</label>
+          <div style="display:flex; gap:8px;">
+            <button type="button" :class="['flag-opt-btn', 'flag-opt-btn--foul', { active: warningForm.style === 'warning' }]" @click="warningForm.style = 'warning'">⚠️ Warning (Red)</button>
+            <button type="button" :class="['flag-opt-btn', 'flag-opt-btn--info', { active: warningForm.style === 'info' }]" @click="warningForm.style = 'info'">ℹ️ Info (Green)</button>
+          </div>
+        </div>
         <div style="display:flex; align-items:center; gap:16px; margin-top:4px;">
           <button
             class="toggle-btn"
@@ -66,8 +73,8 @@
             {{ savingWarning ? 'Saving...' : 'Save Warning' }}
           </button>
         </div>
-        <div v-if="warningForm.enabled && warningForm.text" class="site-warning" style="margin-top:16px; border-radius:var(--radius);">
-          <span class="site-warning-icon">⚠️</span>
+        <div v-if="warningForm.enabled && warningForm.text" :class="['site-warning', warningForm.style === 'info' ? 'site-warning--info' : '']" style="margin-top:16px; border-radius:var(--radius);">
+          <span class="site-warning-icon">{{ warningForm.style === 'info' ? 'ℹ️' : '⚠️' }}</span>
           <span>{{ warningForm.text }}</span>
         </div>
       </div>
@@ -297,7 +304,7 @@ export default {
       error: null,
       success: null,
       stats: null,
-      warningForm: { enabled: false, text: '' },
+      warningForm: { enabled: false, text: '', style: 'warning' },
       savingWarning: false,
       homeStats: {
         home_show_total_competitors: true,
@@ -339,6 +346,7 @@ export default {
         this.settingsForm.rules = data.rules || '';
         this.warningForm.enabled = data.site_warning_enabled === 'true';
         this.warningForm.text = data.site_warning_text || '';
+        this.warningForm.style = data.site_warning_style || 'warning';
         // Load home stat visibility (default true if not set)
         for (const key of Object.keys(this.homeStats)) {
           if (data[key] !== undefined) {
@@ -365,7 +373,8 @@ export default {
       try {
         await settingsApi.update({
           site_warning_enabled: String(this.warningForm.enabled),
-          site_warning_text: this.warningForm.text
+          site_warning_text: this.warningForm.text,
+          site_warning_style: this.warningForm.style
         });
         this.success = 'Warning banner saved!';
       } catch (e) {

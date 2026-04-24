@@ -1,7 +1,7 @@
 <template>
   <div>
-    <div v-if="warningEnabled && warningText" class="site-warning">
-      <span class="site-warning-icon">⚠️</span>
+    <div v-if="warningEnabled && warningText" :class="['site-warning', warningStyle === 'info' ? 'site-warning--info' : '']">
+      <span class="site-warning-icon">{{ warningStyle === 'info' ? 'ℹ️' : '⚠️' }}</span>
       <span>{{ warningText }}</span>
     </div>
 
@@ -77,7 +77,8 @@ export default {
       showProfilePrompt: false,
       siteStats: null,
       warningEnabled: false,
-      warningText: ''
+      warningText: '',
+      warningStyle: 'warning'
     };
   },
   computed: {
@@ -98,6 +99,7 @@ export default {
       this.dates = await settings.get();
       this.warningEnabled = this.dates.site_warning_enabled === 'true';
       this.warningText = this.dates.site_warning_text || '';
+      this.warningStyle = this.dates.site_warning_style || 'warning';
       const anyVisible = [
         'home_show_total_competitors', 'home_show_total_official_competitors',
         'home_show_total_dogs', 'home_show_total_entries', 'home_show_prize_pool'
