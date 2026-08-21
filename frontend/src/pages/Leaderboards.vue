@@ -155,6 +155,9 @@ export default {
     }
   },
   async created() {
+    if (this.$route.query.tab === 'competitors') {
+      this.tab = 'competitors';
+    }
     try {
       const data = await leaderboard.overall();
       if (data.not_started) {
@@ -167,6 +170,9 @@ export default {
       console.error(e);
     } finally {
       this.loading = false;
+    }
+    if (this.tab === 'competitors') {
+      this.loadCompetitors();
     }
   },
   methods: {

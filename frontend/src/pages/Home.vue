@@ -16,7 +16,13 @@
     </div>
 
     <div v-if="visibleStats.length > 0" class="site-stats">
-      <div v-for="stat in visibleStats" :key="stat.key" class="site-stat">
+      <div
+        v-for="stat in visibleStats"
+        :key="stat.key"
+        class="site-stat"
+        :class="{ 'site-stat--highlight': stat.highlight, 'site-stat--clickable': stat.link }"
+        @click="stat.link && $router.push(stat.link)"
+      >
         <div class="site-stat-value">{{ stat.value }}</div>
         <div class="site-stat-label">{{ stat.icon }} {{ stat.label }}</div>
       </div>
@@ -86,9 +92,9 @@ export default {
       if (!this.siteStats || !this.dates) return [];
       const all = [
         { key: 'home_show_total_competitors', label: 'Competitors', icon: '👥', value: this.siteStats.total_competitors },
-        { key: 'home_show_total_official_competitors', label: 'Official Competitors', icon: '🏅', value: this.siteStats.total_official_competitors },
         { key: 'home_show_total_dogs', label: 'Hot Dogs Eaten', icon: '🌭', value: this.siteStats.total_dogs },
         { key: 'home_show_total_entries', label: 'Log Posts', icon: '📝', value: this.siteStats.total_entries },
+        { key: 'home_show_total_official_competitors', label: 'Official Competitors', icon: '🏅', value: this.siteStats.total_official_competitors, highlight: true, link: '/leaderboards?tab=competitors' },
         { key: 'home_show_prize_pool', label: 'Prize Pool', icon: '💰', value: '$' + this.siteStats.prize_pool }
       ];
       return all.filter(s => this.dates[s.key] !== 'false');

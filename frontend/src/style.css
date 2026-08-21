@@ -722,6 +722,25 @@ body {
   letter-spacing: 0.4px;
 }
 
+.site-stat--highlight {
+  background: #f0fdf4;
+  border-top-color: #16a34a;
+}
+
+.site-stat--highlight .site-stat-value {
+  color: #15803d;
+}
+
+.site-stat--clickable {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.site-stat--clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg, 0 6px 16px rgba(0,0,0,0.12));
+}
+
 /* Admin Stats Grid */
 .stats-grid {
   display: grid;
