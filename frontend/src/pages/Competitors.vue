@@ -31,11 +31,13 @@
           </thead>
           <tbody>
             <tr v-for="c in filtered" :key="c.id">
-              <td>
-                <router-link :to="'/profile/' + c.username" class="profile-link">
-                  <strong>{{ c.username }}</strong>
-                </router-link>
-                <span v-if="c.is_official_competitor" class="official-badge" title="Official Competitor">✔</span>
+              <td class="competitor-td">
+                <div class="competitor-cell">
+                  <router-link :to="'/profile/' + c.username" class="profile-link">
+                    <strong>{{ c.username }}</strong>
+                  </router-link>
+                  <span v-if="c.is_official_competitor" class="official-badge" title="Official Competitor">✔</span>
+                </div>
               </td>
               <td>{{ c.total_dogs }}</td>
             </tr>

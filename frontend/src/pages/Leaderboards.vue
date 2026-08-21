@@ -47,11 +47,13 @@
             <td class="leaderboard-rank" :class="'rank-' + entry.rank">
               {{ entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : '#' + entry.rank }}
             </td>
-            <td>
-              <router-link :to="'/profile/' + entry.username" class="profile-link">
-                <strong>{{ entry.username }}</strong>
-              </router-link>
-              <span v-if="entry.is_official_competitor" class="official-badge" title="Official Competitor">✔</span>
+            <td class="competitor-td">
+              <div class="competitor-cell">
+                <router-link :to="'/profile/' + entry.username" class="profile-link">
+                  <strong>{{ entry.username }}</strong>
+                </router-link>
+                <span v-if="entry.is_official_competitor" class="official-badge" title="Official Competitor">✔</span>
+              </div>
             </td>
             <td><strong>{{ entry.total_dogs }}</strong></td>
             <td>{{ entry.total_entries }}</td>
