@@ -13,6 +13,8 @@ const commentRoutes = require('./routes/comments');
 const ratingRoutes = require('./routes/ratings');
 const passwordResetRoutes = require('./routes/passwordReset');
 const adminEmailRoutes = require('./routes/adminEmail');
+const voteRoutes = require('./routes/vote');
+const adminVoteRoutes = require('./routes/adminVote');
 const emailService = require('./services/email');
 
 const app = express();
@@ -71,6 +73,8 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/password-reset', passwordResetRoutes);
 app.use('/api/admin/email', adminEmailRoutes);
+app.use('/api/vote', voteRoutes);
+app.use('/api/admin/vote', adminVoteRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

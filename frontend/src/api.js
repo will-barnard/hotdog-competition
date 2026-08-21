@@ -169,6 +169,63 @@ export const settings = {
   }
 };
 
+export const vote = {
+  async get() {
+    return request('/vote', { headers: getHeaders(true) });
+  },
+
+  async respond(payload) {
+    return request('/vote/respond', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async abstain() {
+    return request('/vote/abstain', {
+      method: 'POST',
+      headers: getHeaders(true)
+    });
+  }
+};
+
+export const adminVote = {
+  async get() {
+    return request('/admin/vote', { headers: getHeaders(true) });
+  },
+
+  async update(data) {
+    return request('/admin/vote', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
+      body: JSON.stringify(data)
+    });
+  },
+
+  async reset() {
+    return request('/admin/vote/reset', {
+      method: 'POST',
+      headers: getHeaders(true)
+    });
+  },
+
+  async end() {
+    return request('/admin/vote/end', {
+      method: 'POST',
+      headers: getHeaders(true)
+    });
+  },
+
+  async setHistoryVisibility(id, resultsVisible) {
+    return request(`/admin/vote/history/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
+      body: JSON.stringify({ results_visible: resultsVisible })
+    });
+  }
+};
+
 export const profile = {
   async get(username, page = 1) {
     return request(`/profile/${encodeURIComponent(username)}?page=${page}`);

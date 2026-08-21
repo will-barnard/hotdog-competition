@@ -164,6 +164,52 @@ const migrations = [
       created_at TIMESTAMP DEFAULT NOW()
     )
   `],
+  ['CREATE votes', `
+    CREATE TABLE IF NOT EXISTS votes (
+      id SERIAL PRIMARY KEY,
+      question TEXT NOT NULL DEFAULT '',
+      vote_type VARCHAR(20) NOT NULL DEFAULT 'multiple_choice',
+      status VARCHAR(20) NOT NULL DEFAULT 'open',
+      enabled BOOLEAN NOT NULL DEFAULT FALSE,
+      results_visible BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW(),
+      ended_at TIMESTAMP
+    )
+  `],
+  // At most one row may be the current "open" vote at a time — admins edit
+  // and voters cast against that row; ending it moves it into history and
+  // a fresh blank open row takes its place.
+  ['CREATE UNIQUE INDEX votes_single_open', `
+    CREATE UNIQUE INDEX IF NOT EXISTS votes_single_open_idx ON votes (status) WHERE status = 'open'
+  `],
+  ['INSERT default open vote row', `
+    INSERT INTO votes (question, vote_type, status, enabled, results_visible)
+    SELECT '', 'multiple_choice', 'open', FALSE, FALSE
+    WHERE NOT EXISTS (SELECT 1 FROM votes WHERE status = 'open')
+  `],
+  ['CREATE vote_options', `
+    CREATE TABLE IF NOT EXISTS vote_options (
+      id SERIAL PRIMARY KEY,
+      vote_id INTEGER NOT NULL REFERENCES votes(id) ON DELETE CASCADE,
+      label VARCHAR(200) NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `],
+  ['CREATE vote_responses', `
+    CREATE TABLE IF NOT EXISTS vote_responses (
+      id SERIAL PRIMARY KEY,
+      vote_id INTEGER NOT NULL REFERENCES votes(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      option_id INTEGER REFERENCES vote_options(id) ON DELETE CASCADE,
+      thumbs_choice VARCHAR(10),
+      abstained BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE (vote_id, user_id)
+    )
+  `],
 ];
 
 // --- Helpers ---
@@ -214,11 +260,11 @@ async function verifySchema() {
     // Verify tables exist
     const tableCheck = await client.query(`
       SELECT table_name FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name IN ('users', 'hotdogs', 'settings', 'comments', 'ratings', 'password_reset_tokens', 'email_daily_log', 'email_queue', 'welcome_email_log')
+      WHERE table_schema = 'public' AND table_name IN ('users', 'hotdogs', 'settings', 'comments', 'ratings', 'password_reset_tokens', 'email_daily_log', 'email_queue', 'welcome_email_log', 'votes', 'vote_options', 'vote_responses')
     `);
     const tables = tableCheck.rows.map(r => r.table_name);
     console.log('Verified tables:', tables.join(', '));
-    const requiredTables = ['users', 'hotdogs', 'settings', 'comments', 'ratings', 'password_reset_tokens', 'email_daily_log', 'email_queue', 'welcome_email_log'];
+    const requiredTables = ['users', 'hotdogs', 'settings', 'comments', 'ratings', 'password_reset_tokens', 'email_daily_log', 'email_queue', 'welcome_email_log', 'votes', 'vote_options', 'vote_responses'];
     const missingTables = requiredTables.filter(t => !tables.includes(t));
     if (missingTables.length > 0) return false;
 

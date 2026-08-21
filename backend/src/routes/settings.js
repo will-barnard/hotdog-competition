@@ -23,7 +23,8 @@ const ALLOWED_SETTINGS_KEYS = [
   'home_show_total_competitors', 'home_show_total_official_competitors',
   'home_show_total_dogs', 'home_show_total_entries', 'home_show_prize_pool',
   'site_warning_enabled', 'site_warning_text', 'site_warning_style',
-  'welcome_email_enabled', 'welcome_email_delay_minutes', 'welcome_email_subject', 'welcome_email_body'
+  'welcome_email_enabled', 'welcome_email_delay_minutes', 'welcome_email_subject', 'welcome_email_body',
+  'nav_show_vote'
 ];
 
 router.put('/', authenticateToken, requireAdmin, async (req, res) => {

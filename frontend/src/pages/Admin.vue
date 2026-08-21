@@ -80,6 +80,106 @@
       </div>
     </div>
 
+    <!-- Vote -->
+    <div class="admin-section">
+      <h2>🗳️ Vote</h2>
+      <div class="card">
+        <p style="color:var(--text-muted); margin-bottom:16px; font-size:0.9rem;">
+          Runs the poll linked from the home page's Vote tile. Editing the question text (or an option's
+          wording, when the option count and vote type stay the same) never resets the tally — adding/removing
+          an option or switching vote type does, and you'll be asked to confirm first. Ending a vote closes it
+          to new votes, moves it into Past Votes below, and opens a fresh question for you to set up next.
+        </p>
+
+        <div style="margin-bottom:16px;">
+          <button class="toggle-btn" :class="{ active: voteNavVisible }" @click="toggleVoteNavVisible">
+            {{ voteNavVisible ? '✔ Vote Link Shown in Nav/Home' : 'Vote Link Hidden from Nav/Home' }}
+          </button>
+          <p style="color:var(--text-muted); margin-top:6px; font-size:0.85rem;">
+            Controls whether the Vote tile on the home page and the Vote link in the site menus appear at all —
+            independent of whether a vote is currently running.
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label>Question</label>
+          <input v-model="voteForm.question" type="text" placeholder="e.g. Should we add a veggie dog category next year?" maxlength="300" />
+        </div>
+
+        <div class="form-group" style="margin-top:12px;">
+          <label>Vote Type</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" :class="['flag-opt-btn', { active: voteForm.vote_type === 'multiple_choice' }]" @click="setVoteType('multiple_choice')">📋 Multiple Choice</button>
+            <button type="button" :class="['flag-opt-btn', { active: voteForm.vote_type === 'thumbs' }]" @click="setVoteType('thumbs')">👍👎 Thumbs Up/Down</button>
+          </div>
+        </div>
+
+        <div v-if="voteForm.vote_type === 'multiple_choice'" class="form-group" style="margin-top:12px;">
+          <label>Options</label>
+          <div v-for="(opt, i) in voteForm.options" :key="i" style="display:flex; gap:8px; margin-bottom:8px;">
+            <input v-model="voteForm.options[i]" type="text" placeholder="Option text" maxlength="200" style="flex:1;" />
+            <button type="button" class="btn btn-secondary btn-sm" :disabled="voteForm.options.length <= 2" @click="removeVoteOption(i)">✕</button>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" :disabled="voteForm.options.length >= 8" @click="addVoteOption">+ Add Option</button>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:16px; margin-top:16px; flex-wrap:wrap;">
+          <button class="toggle-btn" :class="{ active: voteForm.enabled }" @click="voteForm.enabled = !voteForm.enabled">
+            {{ voteForm.enabled ? '✔ Vote On' : 'Vote Off' }}
+          </button>
+          <button class="toggle-btn" :class="{ active: voteForm.results_visible }" @click="voteForm.results_visible = !voteForm.results_visible">
+            {{ voteForm.results_visible ? '✔ Results Public' : 'Results Hidden' }}
+          </button>
+          <button class="btn btn-primary" :disabled="savingVote" @click="saveVote">
+            {{ savingVote ? 'Saving...' : 'Save Vote' }}
+          </button>
+          <button type="button" class="btn btn-secondary" @click="resetVoteResults">Reset Results</button>
+          <button type="button" class="btn btn-danger" @click="endVote">End Vote</button>
+        </div>
+
+        <div v-if="voteData && voteData.current" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+          <h3 style="font-size:0.95rem; margin-bottom:10px;">Current Results</h3>
+          <div v-for="r in currentAdminRows" :key="r.key" class="home-vote-result-row">
+            <div class="home-vote-result-label">{{ r.label }} <span class="home-vote-result-pct">{{ r.count }} ({{ r.pct }}%)</span></div>
+            <div class="home-vote-result-bar"><div class="home-vote-result-fill" :style="{ width: r.pct + '%' }"></div></div>
+          </div>
+          <p style="margin-top:10px; font-size:0.85rem; color:var(--text-muted);">
+            {{ voteData.current.total_responses }} total response{{ voteData.current.total_responses === 1 ? '' : 's' }} · {{ voteData.current.abstain_count }} dismissed without voting (admin-only, excluded from the public tally)
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Past Votes -->
+    <div class="admin-section" v-if="voteData && voteData.history && voteData.history.length">
+      <h2>📜 Past Votes</h2>
+      <div v-for="h in voteData.history" :key="h.id" class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+          <div>
+            <strong>{{ h.question || '(no question set)' }}</strong>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:4px;">Ended {{ formatShortDate(h.ended_at) }}</p>
+          </div>
+          <button
+            type="button"
+            class="toggle-btn"
+            :class="{ active: h.results_visible }"
+            @click="toggleHistoryVisibility(h)"
+          >
+            {{ h.results_visible ? '✔ Public' : 'Hidden' }}
+          </button>
+        </div>
+        <div style="margin-top:14px;">
+          <div v-for="r in historyAdminRows(h)" :key="r.key" class="home-vote-result-row">
+            <div class="home-vote-result-label">{{ r.label }} <span class="home-vote-result-pct">{{ r.count }} ({{ r.pct }}%)</span></div>
+            <div class="home-vote-result-bar"><div class="home-vote-result-fill" :style="{ width: r.pct + '%' }"></div></div>
+          </div>
+          <p style="margin-top:10px; font-size:0.85rem; color:var(--text-muted);">
+            {{ h.total_responses }} total response{{ h.total_responses === 1 ? '' : 's' }} · {{ h.abstain_count }} dismissed without voting
+          </p>
+        </div>
+      </div>
+    </div>
+
     <!-- Competition Settings -->
     <div class="admin-section">
       <h2>📅 Competition Settings</h2>
@@ -284,7 +384,7 @@
 </template>
 
 <script>
-import { admin, settings as settingsApi } from '../api';
+import { admin, settings as settingsApi, adminVote } from '../api';
 
 export default {
   data() {
@@ -319,18 +419,156 @@ export default {
         { key: 'home_show_total_dogs', label: 'Total Hot Dogs Eaten', icon: '🌭' },
         { key: 'home_show_total_entries', label: 'Total Log Posts', icon: '📝' },
         { key: 'home_show_prize_pool', label: 'Prize Pool', icon: '💰' }
-      ]
+      ],
+      voteForm: { question: '', vote_type: 'multiple_choice', options: ['', ''], enabled: false, results_visible: false },
+      voteData: null,
+      savingVote: false,
+      voteNavVisible: true
     };
+  },
+  computed: {
+    currentAdminRows() {
+      if (!this.voteData || !this.voteData.current) return [];
+      return this.resultRows(this.voteData.current.vote_type, this.voteData.current.results);
+    }
   },
   async created() {
     await Promise.all([
       this.loadUsers(),
       this.loadHotdogs(1),
       this.loadSettings(),
-      this.loadStats()
+      this.loadStats(),
+      this.loadVote()
     ]);
   },
   methods: {
+    resultRows(voteType, results) {
+      if (!results) return [];
+      if (voteType === 'thumbs') {
+        const total = (results.up || 0) + (results.down || 0);
+        const t = total || 1;
+        return [
+          { key: 'up', label: '👍 Yes', count: results.up || 0, pct: Math.round((results.up || 0) / t * 100) },
+          { key: 'down', label: '👎 No', count: results.down || 0, pct: Math.round((results.down || 0) / t * 100) }
+        ];
+      }
+      const total = results.reduce((s, r) => s + r.count, 0);
+      const t = total || 1;
+      return results.map(r => ({ key: r.id, label: r.label, count: r.count, pct: Math.round(r.count / t * 100) }));
+    },
+    historyAdminRows(h) {
+      return this.resultRows(h.vote_type, h.results);
+    },
+    formatShortDate(str) {
+      if (!str) return '';
+      return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    },
+    async loadVote() {
+      try {
+        const data = await adminVote.get();
+        this.voteData = data;
+        const current = data.current;
+        if (current) {
+          this.voteForm.question = current.question || '';
+          this.voteForm.vote_type = current.vote_type || 'multiple_choice';
+          this.voteForm.options = current.options && current.options.length ? current.options.map(o => o.label) : ['', ''];
+          this.voteForm.enabled = !!current.enabled;
+          this.voteForm.results_visible = !!current.results_visible;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    setVoteType(type) {
+      if (type === this.voteForm.vote_type) return;
+      const current = this.voteData && this.voteData.current;
+      if (current && current.total_responses > 0) {
+        if (!confirm('Switching vote type will reset all current results. Continue?')) return;
+      }
+      this.voteForm.vote_type = type;
+      if (type === 'multiple_choice' && this.voteForm.options.length < 2) {
+        this.voteForm.options = ['', ''];
+      }
+    },
+    addVoteOption() {
+      if (this.voteForm.options.length >= 8) return;
+      this.voteForm.options.push('');
+    },
+    removeVoteOption(i) {
+      if (this.voteForm.options.length <= 2) return;
+      this.voteForm.options.splice(i, 1);
+    },
+    async saveVote() {
+      this.error = null;
+      this.success = null;
+
+      const cleanedOptions = this.voteForm.options.map(o => o.trim()).filter(Boolean);
+
+      if (this.voteForm.vote_type === 'multiple_choice' && cleanedOptions.length < 2) {
+        this.error = 'Provide at least 2 options.';
+        return;
+      }
+
+      const current = this.voteData && this.voteData.current;
+      const typeChanged = current && this.voteForm.vote_type !== current.vote_type;
+      const optionCountChanged = !typeChanged && this.voteForm.vote_type === 'multiple_choice' &&
+        current && current.vote_type === 'multiple_choice' &&
+        cleanedOptions.length !== current.options.length;
+
+      if ((typeChanged || optionCountChanged) && current && current.total_responses > 0) {
+        if (!confirm('This change will reset the current vote results. Continue?')) return;
+      }
+
+      this.savingVote = true;
+      try {
+        await adminVote.update({
+          question: this.voteForm.question,
+          vote_type: this.voteForm.vote_type,
+          options: this.voteForm.vote_type === 'multiple_choice' ? cleanedOptions : undefined,
+          enabled: this.voteForm.enabled,
+          results_visible: this.voteForm.results_visible
+        });
+        await this.loadVote();
+        this.success = 'Vote saved!';
+      } catch (e) {
+        this.error = e.message;
+      } finally {
+        this.savingVote = false;
+      }
+    },
+    async resetVoteResults() {
+      if (!confirm('Reset all vote results? This cannot be undone.')) return;
+      try {
+        await adminVote.reset();
+        await this.loadVote();
+        this.success = 'Vote results reset.';
+      } catch (e) {
+        this.error = e.message;
+      }
+    },
+    async endVote() {
+      const current = this.voteData && this.voteData.current;
+      if (!current || !current.question) {
+        this.error = 'Set a question before ending the vote.';
+        return;
+      }
+      if (!confirm('End this vote? It will close to new votes and move into Past Votes. A fresh question will open up for you to set up next.')) return;
+      try {
+        await adminVote.end();
+        await this.loadVote();
+        this.success = 'Vote ended and moved to Past Votes.';
+      } catch (e) {
+        this.error = e.message;
+      }
+    },
+    async toggleHistoryVisibility(h) {
+      try {
+        await adminVote.setHistoryVisibility(h.id, !h.results_visible);
+        await this.loadVote();
+      } catch (e) {
+        this.error = e.message;
+      }
+    },
     async loadStats() {
       try {
         this.stats = await admin.getStats();
@@ -353,6 +591,7 @@ export default {
             this.homeStats[key] = data[key] !== 'false';
           }
         }
+        this.voteNavVisible = data.nav_show_vote !== 'false';
       } catch (e) {
         console.error(e);
       }
@@ -362,6 +601,15 @@ export default {
       try {
         await settingsApi.update({ [key]: String(newVal) });
         this.homeStats[key] = newVal;
+      } catch (e) {
+        this.error = e.message;
+      }
+    },
+    async toggleVoteNavVisible() {
+      const newVal = !this.voteNavVisible;
+      try {
+        await settingsApi.update({ nav_show_vote: String(newVal) });
+        this.voteNavVisible = newVal;
       } catch (e) {
         this.error = e.message;
       }

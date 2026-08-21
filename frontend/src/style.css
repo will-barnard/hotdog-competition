@@ -1249,3 +1249,161 @@ tr.breakdown-out td {
   color: #166534;
 }
 
+/* ── Home page vote widget ───────────────────────────── */
+/* Borrows the site-warning's icon+bold-text header treatment, on a card. */
+.home-vote {
+  position: relative;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.home-vote-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--text-primary);
+  padding-right: 24px;
+}
+
+.home-vote-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.15s;
+}
+
+.home-vote-close:hover {
+  background: #f1f5f9;
+  color: var(--text-primary);
+}
+
+.home-vote-body {
+  margin-top: 14px;
+}
+
+.home-vote-note {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.home-vote-link-btn {
+  border: none;
+  background: none;
+  color: var(--cubs-blue);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.home-vote-options,
+.home-vote-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.home-vote-option-btn,
+.home-vote-thumb-btn {
+  padding: 9px 18px;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  background: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-primary);
+}
+
+.home-vote-option-btn:hover,
+.home-vote-thumb-btn:hover {
+  border-color: var(--cubs-blue-light);
+}
+
+.home-vote-option-btn.active,
+.home-vote-thumb-btn.active {
+  background: var(--cubs-blue);
+  border-color: var(--cubs-blue);
+  color: white;
+}
+
+.home-vote-option-btn:disabled,
+.home-vote-thumb-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.home-vote-results {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.home-vote-result-row {
+  margin-bottom: 10px;
+}
+
+.home-vote-result-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.home-vote-result-pct {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.home-vote-result-bar {
+  background: #eef1f5;
+  border-radius: 20px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.home-vote-result-fill {
+  background: var(--cubs-blue);
+  height: 100%;
+  border-radius: 20px;
+  transition: width 0.3s ease;
+}
+
+.home-vote-result-total {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.vote-history {
+  margin-top: 28px;
+}
+
+.vote-history-heading {
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+}
+
+.vote-history .home-vote {
+  margin-bottom: 16px;
+}
+

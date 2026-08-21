@@ -45,6 +45,12 @@
         <span class="home-card-desc">Create an account and start eating!</span>
       </router-link>
 
+      <router-link to="/vote" class="home-card" v-if="showVoteTile">
+        <span class="home-card-icon">🗳️</span>
+        <span class="home-card-title">Vote</span>
+        <span class="home-card-desc">Cast your vote or see how it's going</span>
+      </router-link>
+
       <router-link to="/feed" class="home-card">
         <span class="home-card-icon">🔥</span>
         <span class="home-card-title">Hot Dog Feed</span>
@@ -88,6 +94,11 @@ export default {
     };
   },
   computed: {
+    // Admin-controlled: whether the "Vote" tile appears at all.
+    showVoteTile() {
+      if (!this.dates) return false;
+      return this.dates.nav_show_vote !== 'false';
+    },
     visibleStats() {
       if (!this.siteStats || !this.dates) return [];
       const all = [

@@ -6,6 +6,7 @@ import LogDog from './pages/LogDog.vue';
 import Feed from './pages/Feed.vue';
 import MyFeed from './pages/MyFeed.vue';
 import Leaderboards from './pages/Leaderboards.vue';
+import Vote from './pages/Vote.vue';
 import Rules from './pages/Rules.vue';
 import Admin from './pages/Admin.vue';
 import Profile from './pages/Profile.vue';
@@ -25,6 +26,7 @@ const routes = [
   { path: '/feed', component: Feed },
   { path: '/my-feed', component: MyFeed, meta: { requiresAuth: true } },
   { path: '/leaderboards', component: Leaderboards },
+  { path: '/vote', component: Vote },
   { path: '/competitors', component: Competitors },
   { path: '/rules', component: Rules },
   { path: '/admin', component: Admin, meta: { requiresAuth: true, requiresAdmin: true } },

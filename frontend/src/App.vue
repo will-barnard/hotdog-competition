@@ -6,6 +6,7 @@
         <div class="nav-links">
           <router-link to="/feed">Feed</router-link>
           <router-link to="/leaderboards">Leaderboards</router-link>
+          <router-link v-if="showVote" to="/vote">Vote</router-link>
           <template v-if="user">
             <router-link to="/my-feed">My Dogs</router-link>
             <router-link to="/settings">Settings</router-link>
@@ -23,6 +24,7 @@
       <div v-if="mobileOpen" class="mobile-menu">
         <router-link to="/feed" @click="mobileOpen = false">Feed</router-link>
         <router-link to="/leaderboards" @click="mobileOpen = false">Leaderboards</router-link>
+        <router-link v-if="showVote" to="/vote" @click="mobileOpen = false">Vote</router-link>
         <router-link to="/rules" @click="mobileOpen = false">Rules</router-link>
         <template v-if="user">
           <router-link to="/log" @click="mobileOpen = false">Log a Dog</router-link>
@@ -47,19 +49,26 @@
 </template>
 
 <script>
-import { auth } from './api';
+import { auth, settings } from './api';
 
 export default {
   data() {
     return {
       user: auth.getUser(),
-      mobileOpen: false
+      mobileOpen: false,
+      showVote: false
     };
   },
-  created() {
+  async created() {
     window.addEventListener('auth-change', () => {
       this.user = auth.getUser();
     });
+    try {
+      const data = await settings.get();
+      this.showVote = data.nav_show_vote !== 'false';
+    } catch (e) {
+      // ignore
+    }
   },
   methods: {
     logout() {
