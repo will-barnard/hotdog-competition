@@ -216,13 +216,19 @@ BEGIN
 END $$;
 
 -- ============================================================
--- 5. SEED SETTINGS so leaderboard/home page are active
---    Sets competition_start to yesterday so it shows data immediately.
+-- 5. SEED A RUNNING SEASON so leaderboard/home page are active.
+--    Needs the backend to have booted once (it creates the seasons tables).
+--    Dev only: replaces every season with one that started yesterday, and
+--    makes the seeded official competitors official in it.
 -- ============================================================
-INSERT INTO settings (key, value) VALUES
-  ('competition_start', (CURRENT_TIMESTAMP - INTERVAL '1 day')::text),
-  ('competition_end',   '2026-09-07T23:59:59Z')
-ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+INSERT INTO settings (key, value) VALUES ('seasons_migrated', 'true')
+ON CONFLICT (key) DO NOTHING;
+DELETE FROM seasons;
+INSERT INTO seasons (name, starts_at, ends_at)
+VALUES ('Dev', CURRENT_TIMESTAMP - INTERVAL '1 day', CURRENT_TIMESTAMP + INTERVAL '30 days');
+INSERT INTO season_officials (season_id, user_id)
+SELECT (SELECT id FROM seasons LIMIT 1), id FROM users WHERE is_official_competitor = TRUE
+ON CONFLICT DO NOTHING;
 
 SQL
 

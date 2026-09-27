@@ -15,6 +15,8 @@ const passwordResetRoutes = require('./routes/passwordReset');
 const adminEmailRoutes = require('./routes/adminEmail');
 const voteRoutes = require('./routes/vote');
 const adminVoteRoutes = require('./routes/adminVote');
+const adminSeasonRoutes = require('./routes/adminSeasons');
+const hallOfFameRoutes = require('./routes/hallOfFame');
 const emailService = require('./services/email');
 
 const app = express();
@@ -75,6 +77,8 @@ app.use('/api/password-reset', passwordResetRoutes);
 app.use('/api/admin/email', adminEmailRoutes);
 app.use('/api/vote', voteRoutes);
 app.use('/api/admin/vote', adminVoteRoutes);
+app.use('/api/admin/seasons', adminSeasonRoutes);
+app.use('/api/hall-of-fame', hallOfFameRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

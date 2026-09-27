@@ -210,6 +210,72 @@ const migrations = [
       UNIQUE (vote_id, user_id)
     )
   `],
+
+  // --- Seasons ---
+  // A season is one competition window. A dog belongs to a season by its
+  // date_eaten (as a Central calendar day, see competitionTime.js) and counts
+  // only if it was not logged as exhibition. The competition_start /
+  // competition_end settings are legacy: they seed the first season once and
+  // are no longer read.
+  ['CREATE seasons', `
+    CREATE TABLE IF NOT EXISTS seasons (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      starts_at TIMESTAMPTZ NOT NULL,
+      ends_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      CHECK (ends_at > starts_at)
+    )
+  `],
+  // Official-competitor status is per season and never carries over.
+  // users.is_official_competitor is legacy (seeds the first season only).
+  ['CREATE season_officials', `
+    CREATE TABLE IF NOT EXISTS season_officials (
+      season_id INTEGER NOT NULL REFERENCES seasons(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (season_id, user_id)
+    )
+  `],
+  // Set on dogs logged while no season is running (off-season mode). Stored
+  // rather than derived from the date so an off-season log dated inside the
+  // season that just ended can never sneak into its totals.
+  ['ADD COLUMN hotdogs.is_exhibition', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS is_exhibition BOOLEAN NOT NULL DEFAULT FALSE`],
+  // One-shot: guarded by a settings marker, not "seasons is empty", so deleting
+  // seasons or un-flagging officials later is never undone by a reboot.
+  ['SEED first season from legacy settings', `
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM settings WHERE key = 'seasons_migrated') THEN
+        INSERT INTO seasons (name, starts_at, ends_at)
+        SELECT '2026',
+               COALESCE((SELECT value FROM settings WHERE key = 'competition_start'), '2026-07-04T05:00:00Z')::timestamptz,
+               COALESCE((SELECT value FROM settings WHERE key = 'competition_end'), '2026-09-08T04:59:59Z')::timestamptz
+        WHERE NOT EXISTS (SELECT 1 FROM seasons);
+
+        INSERT INTO season_officials (season_id, user_id)
+        SELECT (SELECT id FROM seasons ORDER BY starts_at LIMIT 1), id
+        FROM users WHERE is_official_competitor = TRUE
+        ON CONFLICT DO NOTHING;
+
+        INSERT INTO settings (key, value) VALUES ('seasons_migrated', 'true');
+      END IF;
+    END $$
+  `],
+  // The season the site is "about" right now: the running one; else the next
+  // one scheduled; else the most recently ended (so its final results stay up).
+  ['CREATE FUNCTION current_season_id', `
+    CREATE OR REPLACE FUNCTION current_season_id() RETURNS INTEGER LANGUAGE sql STABLE AS $$
+      SELECT id FROM seasons
+      ORDER BY
+        CASE WHEN NOW() BETWEEN starts_at AND ends_at THEN 0
+             WHEN starts_at > NOW() THEN 1
+             ELSE 2 END,
+        CASE WHEN starts_at > NOW() THEN starts_at END ASC NULLS LAST,
+        ends_at DESC
+      LIMIT 1
+    $$
+  `],
 ];
 
 // --- Helpers ---
@@ -260,11 +326,11 @@ async function verifySchema() {
     // Verify tables exist
     const tableCheck = await client.query(`
       SELECT table_name FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name IN ('users', 'hotdogs', 'settings', 'comments', 'ratings', 'password_reset_tokens', 'email_daily_log', 'email_queue', 'welcome_email_log', 'votes', 'vote_options', 'vote_responses')
+      WHERE table_schema = 'public' AND table_name IN ('users', 'hotdogs', 'settings', 'comments', 'ratings', 'password_reset_tokens', 'email_daily_log', 'email_queue', 'welcome_email_log', 'votes', 'vote_options', 'vote_responses', 'seasons', 'season_officials')
     `);
     const tables = tableCheck.rows.map(r => r.table_name);
     console.log('Verified tables:', tables.join(', '));
-    const requiredTables = ['users', 'hotdogs', 'settings', 'comments', 'ratings', 'password_reset_tokens', 'email_daily_log', 'email_queue', 'welcome_email_log', 'votes', 'vote_options', 'vote_responses'];
+    const requiredTables = ['users', 'hotdogs', 'settings', 'comments', 'ratings', 'password_reset_tokens', 'email_daily_log', 'email_queue', 'welcome_email_log', 'votes', 'vote_options', 'vote_responses', 'seasons', 'season_officials'];
     const missingTables = requiredTables.filter(t => !tables.includes(t));
     if (missingTables.length > 0) return false;
 
@@ -277,13 +343,15 @@ async function verifySchema() {
         (table_name = 'hotdogs' AND column_name = 'flag_text') OR
         (table_name = 'hotdogs' AND column_name = 'photo_hidden') OR
         (table_name = 'hotdogs' AND column_name = 'date_mismatch') OR
+        (table_name = 'hotdogs' AND column_name = 'is_exhibition') OR
         (table_name = 'users' AND column_name = 'profile_picture')
       )
     `);
     const cols = colCheck.rows.map(r => `${r.table_name}.${r.column_name}`);
     if (!cols.includes('hotdogs.date_eaten') || !cols.includes('users.profile_picture') ||
         !cols.includes('hotdogs.flag_status') || !cols.includes('hotdogs.flag_text') ||
-        !cols.includes('hotdogs.photo_hidden') || !cols.includes('hotdogs.date_mismatch')) {
+        !cols.includes('hotdogs.photo_hidden') || !cols.includes('hotdogs.date_mismatch') ||
+        !cols.includes('hotdogs.is_exhibition')) {
       console.log('Missing columns detected, need re-migration');
       return false;
     }

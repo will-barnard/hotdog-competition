@@ -7,12 +7,14 @@
 
     <div v-if="competitionEnded" class="card" style="text-align:center; padding:40px;">
       <p style="font-size:2rem; margin-bottom:10px;">🏁</p>
-      <p style="color:var(--text-muted); font-weight:600;">The competition has ended. Logging is closed.</p>
+      <p style="color:var(--text-muted); font-weight:600;">The season has ended. Logging is closed.</p>
+      <p style="color:var(--text-muted); margin-top:6px;">See you next season!</p>
     </div>
 
     <div v-else class="card" style="max-width: 600px;">
       <div v-if="isExhibition" class="alert" style="background: #fff3cd; color: #856404; border: 1px solid #ffc107; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
-        🏟️ <strong>Exhibition Mode</strong> — The competition hasn't started yet. Dogs logged now won't count toward the leaderboard.
+        <template v-if="offSeason">🧢 <strong>Off-Season</strong> — Dogs logged now are exhibition and won't count toward any season.</template>
+        <template v-else>🏟️ <strong>Exhibition Mode</strong> — The season hasn't started yet. Dogs logged now won't count toward the leaderboard.</template>
       </div>
 
       <div v-if="success" class="alert alert-success">Hot dog logged! 🎉</div>
@@ -85,19 +87,17 @@ export default {
       error: null,
       success: false,
       competitionEnded: false,
-      isExhibition: false
+      isExhibition: false,
+      offSeason: false
     };
   },
   async created() {
     try {
       const s = await settings.get();
-      const now = new Date();
-      if (s.competition_end && new Date(s.competition_end) < now) {
-        this.competitionEnded = true;
-      }
-      if (s.competition_start && new Date(s.competition_start) > now) {
-        this.isExhibition = true;
-      }
+      // The server decides; these just mirror it (the server enforces it too).
+      this.competitionEnded = s.logging_open === false;
+      this.isExhibition = s.logging_open !== false && s.status !== 'active';
+      this.offSeason = !!s.off_season;
     } catch (e) {
       // ignore
     }

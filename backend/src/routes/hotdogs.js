@@ -6,7 +6,8 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { pool } = require('../db');
-const { localDateSql, todayLocal, addDays } = require('../competitionTime');
+const { todayLocal, addDays } = require('../competitionTime');
+const { inSeasonSql, officialSql, getSeasonState, dateInSeason } = require('../services/seasons');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -65,14 +66,14 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
       return res.status(400).json({ error: 'Hot dogs can only be logged within 3 days of eating' });
     }
 
-    // Check if competition has ended
-    const settingsResult = await pool.query("SELECT value FROM settings WHERE key = 'competition_end'");
-    if (settingsResult.rows.length > 0) {
-      const compEnd = new Date(settingsResult.rows[0].value);
-      if (new Date() > compEnd) {
-        return res.status(400).json({ error: 'The competition has ended. Logging is closed.' });
-      }
+    // Logging is open while a season runs, or anytime the admin has
+    // Off-Season mode on. Anything logged outside a running season — or dated
+    // outside it — is exhibition and never counts toward any season.
+    const state = await getSeasonState();
+    if (!state.logging_open) {
+      return res.status(400).json({ error: 'The season has ended. Logging is closed.' });
     }
+    const isExhibition = !(state.status === 'active' && dateInSeason(date_eaten, state.season));
 
     const filename = crypto.randomBytes(16).toString('hex') + '.webp';
     const filepath = path.join(uploadsDir, filename);
@@ -98,13 +99,13 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
     }
 
     const result = await pool.query(
-      'INSERT INTO hotdogs (user_id, title, description, quantity, image_url, date_eaten, date_mismatch) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [req.user.id, title, description || null, qty, imageUrl, date_eaten, dateMismatch]
+      'INSERT INTO hotdogs (user_id, title, description, quantity, image_url, date_eaten, date_mismatch, is_exhibition) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [req.user.id, title, description || null, qty, imageUrl, date_eaten, dateMismatch, isExhibition]
     );
 
     const hotdog = result.rows[0];
 
-    const userResult = await pool.query('SELECT username, is_official_competitor FROM users WHERE id = $1', [req.user.id]);
+    const userResult = await pool.query(`SELECT username, ${officialSql('users.id')} AS is_official_competitor FROM users WHERE id = $1`, [req.user.id]);
     hotdog.username = userResult.rows[0].username;
     hotdog.is_official_competitor = userResult.rows[0].is_official_competitor;
 
@@ -122,7 +123,7 @@ router.get('/feed', async (req, res) => {
     const offset = (page - 1) * limit;
 
     const result = await pool.query(`
-      SELECT h.*, u.username, u.is_official_competitor, u.profile_picture,
+      SELECT h.*, u.username, ${officialSql()} AS is_official_competitor, u.profile_picture,
              COALESCE(cc.cnt, 0)::int as comment_count
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
@@ -157,7 +158,7 @@ router.get('/my-feed', authenticateToken, async (req, res) => {
     const offset = (page - 1) * limit;
 
     const result = await pool.query(`
-      SELECT h.*, u.username, u.is_official_competitor, u.profile_picture,
+      SELECT h.*, u.username, ${officialSql()} AS is_official_competitor, u.profile_picture,
              COALESCE(cc.cnt, 0)::int as comment_count
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
@@ -176,17 +177,12 @@ router.get('/my-feed', authenticateToken, async (req, res) => {
       if (row.photo_hidden) row.image_url = null;
     }
 
-    // Sum only within the competition window so this matches the leaderboard
-    const datesResult = await pool.query("SELECT key, value FROM settings WHERE key IN ('competition_start', 'competition_end')");
-    const dates = {};
-    datesResult.rows.forEach(r => { dates[r.key] = r.value; });
-    const compStart = dates.competition_start || '1970-01-01';
-    const compEnd = dates.competition_end || '9999-12-31';
-
+    // Current season only, so this matches the leaderboard
     const totalDogs = await pool.query(
-      `SELECT COALESCE(SUM(quantity), 0)::int as total FROM hotdogs
-       WHERE user_id = $1 AND date_eaten >= ${localDateSql('$2')} AND date_eaten <= ${localDateSql('$3')}`,
-      [req.user.id, compStart, compEnd]
+      `SELECT COALESCE(SUM(h.quantity), 0)::int as total
+       FROM seasons s JOIN hotdogs h ON h.user_id = $1 AND ${inSeasonSql('h', 's')}
+       WHERE s.id = current_season_id()`,
+      [req.user.id]
     );
 
     res.json({
@@ -206,7 +202,7 @@ router.get('/:id', async (req, res) => {
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
 
     const result = await pool.query(`
-      SELECT h.*, u.username, u.is_official_competitor, u.profile_picture
+      SELECT h.*, u.username, ${officialSql()} AS is_official_competitor, u.profile_picture
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
       WHERE h.id = $1

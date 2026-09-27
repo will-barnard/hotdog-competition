@@ -2,6 +2,7 @@ const express = require('express');
 const { pool } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const email = require('../services/email');
+const { officialSql } = require('../services/seasons');
 
 const router = express.Router();
 
@@ -40,8 +41,9 @@ router.post('/bulk', authenticateToken, requireAdmin, async (req, res) => {
 
   try {
     let query = 'SELECT email FROM users';
-    if (group === 'official') query += ' WHERE is_official_competitor = TRUE';
-    else if (group === 'exhibition') query += ' WHERE is_official_competitor = FALSE';
+    // Official = official in the current season
+    if (group === 'official') query += ` WHERE ${officialSql('users.id')}`;
+    else if (group === 'exhibition') query += ` WHERE NOT ${officialSql('users.id')}`;
     else if (group === 'admin') query += ' WHERE is_admin = TRUE';
     // 'all' or undefined = everyone
 

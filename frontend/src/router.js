@@ -16,6 +16,7 @@ import ForgotPassword from './pages/ForgotPassword.vue';
 import ResetPassword from './pages/ResetPassword.vue';
 import BulkEmail from './pages/BulkEmail.vue';
 import WelcomeEmail from './pages/WelcomeEmail.vue';
+import HallOfFame from './pages/HallOfFame.vue';
 import { auth } from './api';
 
 const routes = [
@@ -29,6 +30,8 @@ const routes = [
   { path: '/vote', component: Vote },
   { path: '/competitors', component: Competitors },
   { path: '/rules', component: Rules },
+  // Visibility is enforced by the API (404 unless public or admin).
+  { path: '/hall-of-fame', component: HallOfFame },
   { path: '/admin', component: Admin, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/profile/:username', component: Profile },
   { path: '/settings', component: Settings, meta: { requiresAuth: true } },

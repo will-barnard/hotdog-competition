@@ -7,12 +7,18 @@
 
     <div class="hero" v-if="!isLoggedIn">
       <span class="hero-emoji">🌭</span>
-      <h1>2026 Hotdog Showdown</h1>
+      <h1>{{ brand }}</h1>
       <p>How many dogs can you put down? Log your hot dogs, climb the leaderboard, and compete for glory!</p>
     </div>
 
-    <div v-if="dates" class="comp-dates">
-      📅 Competition: {{ formatDate(dates.competition_start) }} — {{ formatDate(dates.competition_end) }}
+    <div v-if="dates && dates.season" class="comp-dates">
+      📅 {{ dates.season.name }} Season: {{ formatDate(dates.competition_start) }} — {{ formatDate(dates.competition_end) }}
+      <span v-if="dates.status === 'ended'"> · 🏁 Final results</span>
+      <span v-else-if="dates.status === 'upcoming'"> · Starts soon</span>
+    </div>
+
+    <div v-if="dates && dates.off_season" class="offseason-banner">
+      🧢 <strong>Off-Season</strong> — log dogs just for fun. They're exhibition and won't count toward any season.
     </div>
 
     <div v-if="visibleStats.length > 0" class="site-stats">
@@ -34,11 +40,16 @@
     </div>
 
     <div class="home-grid">
-      <router-link to="/log" class="home-card" v-if="isLoggedIn">
+      <router-link to="/log" class="home-card" v-if="isLoggedIn && loggingOpen">
         <span class="home-card-icon">📝</span>
         <span class="home-card-title">Log a Dog</span>
-        <span class="home-card-desc">Ate a hot dog? Log it with a photo!</span>
+        <span class="home-card-desc">{{ dates && dates.off_season ? 'Off-season dog? Log it for fun.' : 'Ate a hot dog? Log it with a photo!' }}</span>
       </router-link>
+      <div class="home-card" v-else-if="isLoggedIn">
+        <span class="home-card-icon">🏁</span>
+        <span class="home-card-title">Logging Closed</span>
+        <span class="home-card-desc">The season is over. See you next season!</span>
+      </div>
       <router-link to="/register" class="home-card" v-else>
         <span class="home-card-icon">📝</span>
         <span class="home-card-title">Sign Up to Compete</span>
@@ -80,6 +91,7 @@
 
 <script>
 import { auth, settings } from '../api';
+import { brandName } from '../siteState';
 
 export default {
   data() {
@@ -94,6 +106,12 @@ export default {
     };
   },
   computed: {
+    brand() {
+      return this.dates && this.dates.season ? `${this.dates.season.name} Hotdog Showdown` : brandName();
+    },
+    loggingOpen() {
+      return !this.dates || this.dates.logging_open !== false;
+    },
     // Admin-controlled: whether the "Vote" tile appears at all.
     showVoteTile() {
       if (!this.dates) return false;

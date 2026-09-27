@@ -2,7 +2,7 @@
   <div>
     <div class="page-header">
       <h1>⚙️ Admin Dashboard</h1>
-      <p>Manage the 2026 Hotdog Showdown</p>
+      <p>Manage the {{ brand }}</p>
     </div>
 
     <div v-if="error" class="alert alert-error">{{ error }}</div>
@@ -10,11 +10,11 @@
 
     <!-- Stats Widget -->
     <div class="admin-section">
-      <h2>📊 Competition Stats</h2>
+      <h2>📊 {{ stats && stats.season ? stats.season.name + ' Season' : 'Competition' }} Stats</h2>
       <div v-if="stats" class="stats-grid">
         <div class="stat-card">
           <div class="stat-value">{{ stats.total_competitors }}</div>
-          <div class="stat-label">Total Competitors</div>
+          <div class="stat-label">Competitors (logged a dog)</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ stats.total_official_competitors }}</div>
@@ -180,27 +180,116 @@
       </div>
     </div>
 
-    <!-- Competition Settings -->
+    <!-- Seasons -->
     <div class="admin-section">
-      <h2>📅 Competition Settings</h2>
+      <h2>🗓️ Seasons</h2>
       <div class="card">
-        <form @submit.prevent="saveSettings">
+        <div v-if="seasonState" class="season-state-line">
+          <template v-if="seasonState.season">
+            <span>Current: <strong>{{ seasonState.season.name }}</strong></span>
+            <span :class="['season-status', 'season-status--' + seasonState.status]">{{ statusLabel(seasonState.status) }}</span>
+            <span style="color:var(--text-muted)">· Logging {{ loggingLabel }}</span>
+          </template>
+          <span v-else style="color:var(--text-muted)">No seasons yet — create one below.</span>
+        </div>
+
+        <div v-if="seasons.length" class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Season</th>
+                <th>Starts</th>
+                <th>Ends</th>
+                <th>Status</th>
+                <th>Dogs</th>
+                <th>Official</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="se in seasons" :key="se.id">
+                <td>
+                  <strong>{{ se.name }}</strong>
+                  <span v-if="se.id === currentSeasonId" style="color:var(--text-muted); font-size:0.8rem;"> (current)</span>
+                </td>
+                <td>{{ formatDateTime(se.starts_at) }}</td>
+                <td>{{ formatDateTime(se.ends_at) }}</td>
+                <td><span :class="['season-status', 'season-status--' + se.status]">{{ statusLabel(se.status) }}</span></td>
+                <td>{{ se.total_dogs }}</td>
+                <td>{{ se.total_official_competitors }}</td>
+                <td style="white-space:nowrap;">
+                  <button type="button" class="btn btn-secondary btn-sm" @click="editSeason(se)">Edit</button>
+                  <button v-if="se.status === 'active'" type="button" class="btn btn-danger btn-sm" style="margin-left:6px;" @click="endSeason(se)">End now</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <form @submit.prevent="saveSeason" style="margin-top:20px;">
+          <h3 style="font-size:1rem; margin-bottom:10px;">{{ seasonForm.id ? `Edit "${seasonForm.originalName}"` : 'New season' }}</h3>
+          <div class="form-group">
+            <label>Name</label>
+            <input v-model="seasonForm.name" type="text" maxlength="100" placeholder="e.g. 2027" />
+          </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;" class="settings-dates">
             <div class="form-group">
-              <label>Start Date</label>
-              <input v-model="settingsForm.competition_start" type="datetime-local" />
+              <label>Start</label>
+              <input v-model="seasonForm.starts_at" type="datetime-local" />
             </div>
             <div class="form-group">
-              <label>End Date</label>
-              <input v-model="settingsForm.competition_end" type="datetime-local" />
+              <label>End</label>
+              <input v-model="seasonForm.ends_at" type="datetime-local" />
             </div>
           </div>
+          <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:12px;">
+            Times are in your local time. The name brands the site ("{{ seasonForm.name || '2027' }} Hotdog Showdown").
+            <template v-if="!seasonForm.id">Creating a future season makes it the current one right away — the home page, leaderboards and the Official toggles below switch to it, and last season's results live on in the Hall of Fame. Official competitors don't carry over.</template>
+          </p>
+          <button type="submit" class="btn btn-primary" :disabled="savingSeason">
+            {{ savingSeason ? 'Saving...' : (seasonForm.id ? 'Save Season' : 'Create Season') }}
+          </button>
+          <button v-if="seasonForm.id" type="button" class="btn btn-secondary" style="margin-left:8px;" @click="resetSeasonForm">Cancel</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Off-Season & Hall of Fame levers -->
+    <div class="admin-section">
+      <h2>🧢 Off-Season &amp; Hall of Fame</h2>
+      <div class="card">
+        <div class="lever-row">
+          <div>
+            <strong>Off-Season mode</strong>
+            <p>While no season is running, let people log dogs as exhibition (they never count toward any season) and switch the site to the Away Game Grey theme. Off = logging stays closed between seasons.</p>
+            <p v-if="seasonState && seasonState.off_season_mode && seasonState.status === 'active'" style="color:#9a3412;">A season is running, so this does nothing until it ends — then the site goes straight into Off-Season.</p>
+          </div>
+          <button type="button" class="toggle-btn" :class="{ active: levers.off_season_mode }" @click="toggleLever('off_season_mode')">
+            {{ levers.off_season_mode ? '✔ On' : 'Off' }}
+          </button>
+        </div>
+        <div class="lever-row">
+          <div>
+            <strong>Hall of Fame visible to everyone</strong>
+            <p>Top 3 of every finished season. Only admins can see it until this is on. <router-link to="/hall-of-fame">Preview →</router-link></p>
+          </div>
+          <button type="button" class="toggle-btn" :class="{ active: levers.hall_of_fame_public }" @click="toggleLever('hall_of_fame_public')">
+            {{ levers.hall_of_fame_public ? '✔ Public' : 'Admins only' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rules -->
+    <div class="admin-section">
+      <h2>📜 Rules</h2>
+      <div class="card">
+        <form @submit.prevent="saveSettings">
           <div class="form-group">
-            <label>Rules</label>
             <textarea v-model="settingsForm.rules" rows="8"></textarea>
           </div>
           <button type="submit" class="btn btn-primary" :disabled="savingSettings">
-            {{ savingSettings ? 'Saving...' : 'Save Settings' }}
+            {{ savingSettings ? 'Saving...' : 'Save Rules' }}
           </button>
         </form>
       </div>
@@ -236,8 +325,8 @@
             <tr>
               <th>Username</th>
               <th>Email</th>
-              <th>Dogs Eaten</th>
-              <th>Official Competitor</th>
+              <th>Dogs ({{ currentSeasonName }})</th>
+              <th>Official ({{ currentSeasonName }})</th>
               <th>Admin</th>
             </tr>
           </thead>
@@ -384,7 +473,10 @@
 </template>
 
 <script>
-import { admin, settings as settingsApi, adminVote } from '../api';
+import { admin, settings as settingsApi, adminVote, adminSeasons } from '../api';
+import { refreshSite, brandName } from '../siteState';
+
+const emptySeasonForm = () => ({ id: null, originalName: '', name: '', starts_at: '', ends_at: '' });
 
 export default {
   data() {
@@ -394,10 +486,14 @@ export default {
       hotdogPagination: {},
       hotdogPage: 1,
       settingsForm: {
-        competition_start: '',
-        competition_end: '',
         rules: ''
       },
+      seasons: [],
+      currentSeasonId: null,
+      seasonState: null,
+      seasonForm: emptySeasonForm(),
+      savingSeason: false,
+      levers: { off_season_mode: false, hall_of_fame_public: false },
       savingSettings: false,
       editModal: null,
       editForm: { title: '', quantity: 0, description: '', flag_status: null, flag_text: '', photo_hidden: false },
@@ -427,6 +523,19 @@ export default {
     };
   },
   computed: {
+    brand() {
+      return this.seasonState && this.seasonState.season
+        ? `${this.seasonState.season.name} Hotdog Showdown`
+        : brandName();
+    },
+    currentSeasonName() {
+      return this.seasonState && this.seasonState.season ? this.seasonState.season.name : 'season';
+    },
+    loggingLabel() {
+      const st = this.seasonState;
+      if (!st || !st.logging_open) return 'closed';
+      return st.status === 'active' ? 'open' : 'open (exhibition only)';
+    },
     currentAdminRows() {
       if (!this.voteData || !this.voteData.current) return [];
       return this.resultRows(this.voteData.current.vote_type, this.voteData.current.results);
@@ -437,6 +546,7 @@ export default {
       this.loadUsers(),
       this.loadHotdogs(1),
       this.loadSettings(),
+      this.loadSeasons(),
       this.loadStats(),
       this.loadVote()
     ]);
@@ -579,9 +689,9 @@ export default {
     async loadSettings() {
       try {
         const data = await settingsApi.get();
-        this.settingsForm.competition_start = this.toDatetimeLocal(data.competition_start);
-        this.settingsForm.competition_end = this.toDatetimeLocal(data.competition_end);
         this.settingsForm.rules = data.rules || '';
+        this.levers.off_season_mode = data.off_season_mode === true;
+        this.levers.hall_of_fame_public = data.hall_of_fame_public === true;
         this.warningForm.enabled = data.site_warning_enabled === 'true';
         this.warningForm.text = data.site_warning_text || '';
         this.warningForm.style = data.site_warning_style || 'warning';
@@ -642,17 +752,104 @@ export default {
       const pad = n => String(n).padStart(2, '0');
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     },
+    statusLabel(status) {
+      return { active: 'Running', upcoming: 'Upcoming', ended: 'Ended', none: 'None' }[status] || status;
+    },
+    formatDateTime(str) {
+      if (!str) return '';
+      return new Date(str).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    },
+    async loadSeasons() {
+      try {
+        const data = await adminSeasons.list();
+        this.seasons = data.seasons;
+        this.currentSeasonId = data.current_season_id;
+        this.seasonState = data.state;
+        this.levers.off_season_mode = data.state.off_season_mode;
+        this.levers.hall_of_fame_public = data.state.hall_of_fame_public;
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    // Everything season-scoped on this page, plus the app-wide theme/nav.
+    async refreshSeasonViews() {
+      await Promise.all([this.loadSeasons(), this.loadStats(), this.loadUsers(), refreshSite().catch(() => {})]);
+    },
+    editSeason(se) {
+      this.seasonForm = {
+        id: se.id,
+        originalName: se.name,
+        name: se.name,
+        starts_at: this.toDatetimeLocal(se.starts_at),
+        ends_at: this.toDatetimeLocal(se.ends_at)
+      };
+    },
+    resetSeasonForm() {
+      this.seasonForm = emptySeasonForm();
+    },
+    async saveSeason() {
+      this.error = null;
+      this.success = null;
+      const f = this.seasonForm;
+      if (!f.name.trim() || !f.starts_at || !f.ends_at) {
+        this.error = 'Season needs a name, a start and an end.';
+        return;
+      }
+      const payload = {
+        name: f.name.trim(),
+        // datetime-local is local wall-clock time; send it as a real instant.
+        starts_at: new Date(f.starts_at).toISOString(),
+        ends_at: new Date(f.ends_at).toISOString()
+      };
+      this.savingSeason = true;
+      try {
+        if (f.id) {
+          await adminSeasons.update(f.id, payload);
+          this.success = `Season "${payload.name}" saved.`;
+        } else {
+          await adminSeasons.create(payload);
+          this.success = `Season "${payload.name}" created.`;
+        }
+        this.resetSeasonForm();
+        await this.refreshSeasonViews();
+      } catch (e) {
+        this.error = e.message;
+      } finally {
+        this.savingSeason = false;
+      }
+    },
+    async endSeason(se) {
+      const after = this.levers.off_season_mode
+        ? 'The site will switch to Off-Season (exhibition logging, grey theme).'
+        : 'Logging will close.';
+      if (!confirm(`End the ${se.name} season right now? Its results freeze. ${after}`)) return;
+      this.error = null;
+      try {
+        await adminSeasons.end(se.id);
+        this.success = `The ${se.name} season has ended.`;
+        await this.refreshSeasonViews();
+      } catch (e) {
+        this.error = e.message;
+      }
+    },
+    async toggleLever(key) {
+      const newVal = !this.levers[key];
+      this.error = null;
+      try {
+        await settingsApi.update({ [key]: String(newVal) });
+        this.levers[key] = newVal;
+        await Promise.all([this.loadSeasons(), refreshSite().catch(() => {})]);
+      } catch (e) {
+        this.error = e.message;
+      }
+    },
     async saveSettings() {
       this.savingSettings = true;
       this.error = null;
       this.success = null;
       try {
-        await settingsApi.update({
-          competition_start: new Date(this.settingsForm.competition_start).toISOString(),
-          competition_end: new Date(this.settingsForm.competition_end).toISOString(),
-          rules: this.settingsForm.rules
-        });
-        this.success = 'Settings saved!';
+        await settingsApi.update({ rules: this.settingsForm.rules });
+        this.success = 'Rules saved!';
       } catch (e) {
         this.error = e.message;
       } finally {

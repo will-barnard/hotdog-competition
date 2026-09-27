@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { localDateSql } = require('../competitionTime');
+const { inSeasonSql, officialSql, getCurrentSeason, getSeasonStats } = require('../services/seasons');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -17,22 +17,20 @@ async function ensurePhotoHiddenColumn() {
   }
 }
 
+// Dogs and official status are for the current season — official status is
+// per season and does not carry over, so a new season starts with nobody flagged.
 router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const datesResult = await pool.query("SELECT key, value FROM settings WHERE key IN ('competition_start', 'competition_end')");
-    const dates = {};
-    datesResult.rows.forEach(r => { dates[r.key] = r.value; });
-    const compStart = dates.competition_start || '1970-01-01';
-    const compEnd = dates.competition_end || '9999-12-31';
-
     const result = await pool.query(`
-      SELECT u.id, u.username, u.email, u.is_admin, u.is_official_competitor, u.created_at,
-             COALESCE(SUM(CASE WHEN h.date_eaten >= ${localDateSql('$1')} AND h.date_eaten <= ${localDateSql('$2')} THEN h.quantity ELSE 0 END), 0)::int as total_dogs
+      SELECT u.id, u.username, u.email, u.is_admin, u.created_at,
+             ${officialSql('u.id', 's.id')} AS is_official_competitor,
+             COALESCE(SUM(h.quantity) FILTER (WHERE ${inSeasonSql('h', 's')}), 0)::int as total_dogs
       FROM users u
+      LEFT JOIN seasons s ON s.id = current_season_id()
       LEFT JOIN hotdogs h ON u.id = h.user_id
-      GROUP BY u.id
+      GROUP BY u.id, s.id
       ORDER BY u.created_at DESC
-    `, [compStart, compEnd]);
+    `);
     res.json(result.rows);
   } catch (err) {
     console.error('Admin get users error:', err);
@@ -46,38 +44,36 @@ router.patch('/users/:id', authenticateToken, requireAdmin, async (req, res) => 
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid user ID' });
 
     const { is_official_competitor, is_admin } = req.body;
-    const updates = [];
-    const values = [];
-    let paramCount = 0;
-
-    if (typeof is_official_competitor === 'boolean') {
-      paramCount++;
-      updates.push(`is_official_competitor = $${paramCount}`);
-      values.push(is_official_competitor);
-    }
-
-    if (typeof is_admin === 'boolean') {
-      paramCount++;
-      updates.push(`is_admin = $${paramCount}`);
-      values.push(is_admin);
-    }
-
-    if (updates.length === 0) {
+    if (typeof is_official_competitor !== 'boolean' && typeof is_admin !== 'boolean') {
       return res.status(400).json({ error: 'No valid fields to update' });
     }
 
-    paramCount++;
-    values.push(id);
+    const exists = await pool.query('SELECT id FROM users WHERE id = $1', [id]);
+    if (exists.rows.length === 0) return res.status(404).json({ error: 'User not found' });
 
-    const result = await pool.query(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING id, username, email, is_admin, is_official_competitor`,
-      values
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    if (typeof is_admin === 'boolean') {
+      await pool.query('UPDATE users SET is_admin = $1 WHERE id = $2', [is_admin, id]);
     }
 
+    if (typeof is_official_competitor === 'boolean') {
+      const season = await getCurrentSeason();
+      if (!season) {
+        return res.status(409).json({ error: 'Create a season before flagging official competitors' });
+      }
+      if (is_official_competitor) {
+        await pool.query(
+          'INSERT INTO season_officials (season_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [season.id, id]
+        );
+      } else {
+        await pool.query('DELETE FROM season_officials WHERE season_id = $1 AND user_id = $2', [season.id, id]);
+      }
+    }
+
+    const result = await pool.query(
+      `SELECT id, username, email, is_admin, ${officialSql('users.id')} AS is_official_competitor FROM users WHERE id = $1`,
+      [id]
+    );
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Admin update user error:', err);
@@ -92,7 +88,7 @@ router.get('/hotdogs', authenticateToken, requireAdmin, async (req, res) => {
     const offset = (page - 1) * limit;
 
     const result = await pool.query(`
-      SELECT h.*, u.username, u.is_official_competitor, u.profile_picture
+      SELECT h.*, u.username, ${officialSql()} AS is_official_competitor, u.profile_picture
       FROM hotdogs h
       JOIN users u ON h.user_id = u.id
       ORDER BY h.created_at DESC
@@ -217,24 +213,9 @@ router.delete('/hotdogs/:id', authenticateToken, requireAdmin, async (req, res) 
 
 router.get('/stats', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const usersResult = await pool.query(`
-      SELECT
-        COUNT(*)::int as total_competitors,
-        COUNT(*) FILTER (WHERE is_official_competitor = TRUE)::int as total_official_competitors
-      FROM users
-    `);
-    const dogsResult = await pool.query(`
-      SELECT
-        COALESCE(SUM(quantity), 0)::int as total_dogs,
-        COUNT(*)::int as total_entries
-      FROM hotdogs
-    `);
-    const stats = {
-      ...usersResult.rows[0],
-      ...dogsResult.rows[0],
-      prize_pool: usersResult.rows[0].total_official_competitors * 5
-    };
-    res.json(stats);
+    const season = await getCurrentSeason();
+    const stats = await getSeasonStats(season && season.id);
+    res.json({ ...stats, season });
   } catch (err) {
     console.error('Admin stats error:', err);
     res.status(500).json({ error: 'Failed to load stats' });

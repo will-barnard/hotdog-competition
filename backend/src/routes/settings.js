@@ -1,17 +1,29 @@
 const express = require('express');
 const { pool } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { getSeasonState, getSeasonStats } = require('../services/seasons');
 
 const router = express.Router();
 
+// Loaded by every page, so the season state rides along here rather than
+// costing a second request.
+async function loadSettings() {
+  const [result, state] = await Promise.all([
+    pool.query('SELECT key, value FROM settings'),
+    getSeasonState()
+  ]);
+  const settings = {};
+  result.rows.forEach(row => { settings[row.key] = row.value; });
+  // competition_start / competition_end are derived from the current season
+  // now; the stored legacy values are ignored.
+  settings.competition_start = state.season ? state.season.starts_at.toISOString() : null;
+  settings.competition_end = state.season ? state.season.ends_at.toISOString() : null;
+  return { ...settings, ...state };
+}
+
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT key, value FROM settings');
-    const settings = {};
-    result.rows.forEach(row => {
-      settings[row.key] = row.value;
-    });
-    res.json(settings);
+    res.json(await loadSettings());
   } catch (err) {
     console.error('Get settings error:', err);
     res.status(500).json({ error: 'Failed to load settings' });
@@ -19,7 +31,8 @@ router.get('/', async (req, res) => {
 });
 
 const ALLOWED_SETTINGS_KEYS = [
-  'competition_start', 'competition_end', 'rules',
+  // Season dates are edited through /api/admin/seasons, not here.
+  'rules', 'off_season_mode', 'hall_of_fame_public',
   'home_show_total_competitors', 'home_show_total_official_competitors',
   'home_show_total_dogs', 'home_show_total_entries', 'home_show_prize_pool',
   'site_warning_enabled', 'site_warning_text', 'site_warning_style',
@@ -38,36 +51,20 @@ router.put('/', authenticateToken, requireAdmin, async (req, res) => {
       }
     }
 
-    const result = await pool.query('SELECT key, value FROM settings');
-    const settings = {};
-    result.rows.forEach(row => { settings[row.key] = row.value; });
-    res.json(settings);
+    res.json(await loadSettings());
   } catch (err) {
     console.error('Update settings error:', err);
     res.status(500).json({ error: 'Failed to update settings' });
   }
 });
 
+// Home page stats — scoped to the current season (running, next, or the one
+// that just ended, in which case these are its final numbers).
 router.get('/stats', async (req, res) => {
   try {
-    const usersResult = await pool.query(`
-      SELECT
-        COUNT(*)::int as total_competitors,
-        COUNT(*) FILTER (WHERE is_official_competitor = TRUE)::int as total_official_competitors
-      FROM users
-    `);
-    const dogsResult = await pool.query(`
-      SELECT
-        COALESCE(SUM(quantity), 0)::int as total_dogs,
-        COUNT(*)::int as total_entries
-      FROM hotdogs
-    `);
-    const stats = {
-      ...usersResult.rows[0],
-      ...dogsResult.rows[0],
-      prize_pool: usersResult.rows[0].total_official_competitors * 5
-    };
-    res.json(stats);
+    const state = await getSeasonState();
+    const stats = await getSeasonStats(state.season && state.season.id);
+    res.json({ ...stats, season: state.season });
   } catch (err) {
     console.error('Stats error:', err);
     res.status(500).json({ error: 'Failed to load stats' });

@@ -2,7 +2,11 @@
   <div>
     <div class="page-header">
       <h1>🏆 Leaderboards</h1>
-      <p>Who's eating the most dogs?</p>
+      <p v-if="site.season">
+        {{ site.season.name }} Season
+        <template v-if="site.status === 'ended'"> · 🏁 Final standings</template>
+      </p>
+      <p v-else>Who's eating the most dogs?</p>
     </div>
 
     <div style="text-align: left; margin-bottom: 20px;">
@@ -120,10 +124,12 @@
 
 <script>
 import { leaderboard, auth } from '../api';
+import { site } from '../siteState';
 
 export default {
   data() {
     return {
+      site,
       tab: 'overall',
       overallList: [],
       competitorsList: [],

@@ -6,6 +6,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { pool } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
+const { inSeasonSql, officialSql } = require('../services/seasons');
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ router.get('/:username', async (req, res) => {
     const { username } = req.params;
 
     const userResult = await pool.query(
-      'SELECT id, username, is_official_competitor, profile_picture, created_at FROM users WHERE username = $1',
+      `SELECT id, username, ${officialSql('users.id')} AS is_official_competitor, profile_picture, created_at FROM users WHERE username = $1`,
       [username]
     );
 
@@ -48,7 +49,7 @@ router.get('/:username', async (req, res) => {
     const offset = (page - 1) * limit;
 
     const dogsResult = await pool.query(
-      `SELECT h.*, u.username, u.is_official_competitor, u.profile_picture,
+      `SELECT h.*, u.username, ${officialSql()} AS is_official_competitor, u.profile_picture,
               COALESCE(cc.cnt, 0)::int as comment_count
        FROM hotdogs h
        JOIN users u ON h.user_id = u.id
@@ -73,9 +74,38 @@ router.get('/:username', async (req, res) => {
       [user.id]
     );
 
+    // One row per season that has started, with this user's counted dogs and
+    // their rank among everyone in that season. Seasons they sat out (no dogs,
+    // not official) are dropped.
+    const seasonsResult = await pool.query(`
+      WITH totals AS (
+        SELECT s.id AS season_id, h.user_id,
+               SUM(h.quantity)::int AS dogs, COUNT(h.id)::int AS entries
+        FROM seasons s JOIN hotdogs h ON ${inSeasonSql('h', 's')}
+        GROUP BY s.id, h.user_id
+      ), ranked AS (
+        -- Same tie-break as the leaderboard and Hall of Fame (dogs, then entries)
+        SELECT *, RANK() OVER (PARTITION BY season_id ORDER BY dogs DESC, entries DESC)::int AS rank
+        FROM totals
+      )
+      SELECT s.id, s.name, s.starts_at, s.ends_at,
+             (NOW() BETWEEN s.starts_at AND s.ends_at) AS is_active,
+             COALESCE(r.dogs, 0) AS total_dogs,
+             COALESCE(r.entries, 0) AS total_entries,
+             r.rank,
+             ${officialSql('$1', 's.id')} AS is_official
+      FROM seasons s
+      LEFT JOIN ranked r ON r.season_id = s.id AND r.user_id = $1
+      WHERE s.starts_at <= NOW()
+      ORDER BY s.starts_at DESC
+    `, [user.id]);
+    const seasons = seasonsResult.rows.filter(r => r.total_dogs > 0 || r.is_official);
+
     res.json({
       user,
+      // All-time: every dog ever logged, exhibition included.
       stats: statsResult.rows[0],
+      seasons,
       hotdogs: dogsResult.rows,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) }
     });
@@ -110,7 +140,7 @@ router.post('/picture', authenticateToken, upload.single('image'), async (req, r
 
     const imageUrl = `/uploads/${filename}`;
     const result = await pool.query(
-      'UPDATE users SET profile_picture = $1 WHERE id = $2 RETURNING id, username, email, is_admin, is_official_competitor, profile_picture',
+      `UPDATE users SET profile_picture = $1 WHERE id = $2 RETURNING id, username, email, is_admin, ${officialSql('users.id')} AS is_official_competitor, profile_picture`,
       [imageUrl, req.user.id]
     );
 

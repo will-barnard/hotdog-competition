@@ -2,7 +2,7 @@
   <div>
     <div class="page-header">
       <h1>👥 Competitors List</h1>
-      <p>Everyone competing in the 2026 Hotdog Showdown</p>
+      <p>Everyone who's ever competed in the Hotdog Showdown · all-time dogs</p>
     </div>
 
     <div class="card" style="max-width: 600px; margin-bottom: 20px; padding: 12px;">

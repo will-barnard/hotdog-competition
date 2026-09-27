@@ -22,7 +22,7 @@
           <div class="profile-stats">
             <div class="profile-stat">
               <span class="profile-stat-num">{{ stats.total_dogs }}</span>
-              <span class="profile-stat-label">Hot Dogs</span>
+              <span class="profile-stat-label">All-Time Dogs</span>
             </div>
             <div class="profile-stat">
               <span class="profile-stat-num">{{ stats.total_entries }}</span>
@@ -30,6 +30,31 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <div v-if="seasons.length" class="card profile-seasons" style="padding:0;">
+        <table>
+          <thead>
+            <tr>
+              <th>Season</th>
+              <th>Dogs</th>
+              <th>Entries</th>
+              <th>Rank</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="se in seasons" :key="se.id">
+              <td>
+                <strong>{{ se.name }}</strong>
+                <span v-if="se.is_official" class="official-badge" title="Official Competitor that season">✔</span>
+                <span v-if="se.is_active" style="color:var(--text-muted); font-size:0.8rem;"> · in progress</span>
+              </td>
+              <td>{{ se.total_dogs }}</td>
+              <td>{{ se.total_entries }}</td>
+              <td>{{ se.rank ? rankLabel(se.rank) : '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <div class="page-header" style="margin-top: 30px;">
@@ -74,6 +99,7 @@ export default {
     return {
       userData: null,
       stats: { total_dogs: 0, total_entries: 0 },
+      seasons: [],
       hotdogList: [],
       ratingData: {},
       pagination: {},
@@ -87,6 +113,11 @@ export default {
     await this.loadPage(1);
   },
   methods: {
+    rankLabel(n) {
+      const medal = { 1: '🥇 ', 2: '🥈 ', 3: '🥉 ' }[n] || '';
+      const suffix = (n % 100 >= 11 && n % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+      return `${medal}${n}${suffix}`;
+    },
     async loadPage(p) {
       this.loading = true;
       this.error = null;
@@ -94,6 +125,7 @@ export default {
         const data = await profile.get(this.$route.params.username, p);
         this.userData = data.user;
         this.stats = data.stats;
+        this.seasons = data.seasons || [];
         this.hotdogList = data.hotdogs;
         this.pagination = data.pagination;
         this.page = p;

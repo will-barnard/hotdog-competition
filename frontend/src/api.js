@@ -133,13 +133,15 @@ export const hotdogs = {
   }
 };
 
+const seasonQuery = seasonId => (seasonId ? `?season=${encodeURIComponent(seasonId)}` : '');
+
 export const leaderboard = {
-  async overall() {
-    return request('/leaderboard/overall');
+  async overall(seasonId) {
+    return request('/leaderboard/overall' + seasonQuery(seasonId));
   },
 
-  async competitors() {
-    return request('/leaderboard/competitors');
+  async competitors(seasonId) {
+    return request('/leaderboard/competitors' + seasonQuery(seasonId));
   },
 
   async allCompetitors() {
@@ -381,5 +383,40 @@ export const adminEmail = {
       headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
       body: JSON.stringify(config)
     });
+  }
+};
+
+export const adminSeasons = {
+  async list() {
+    return request('/admin/seasons', { headers: getHeaders(true) });
+  },
+
+  async create(data) {
+    return request('/admin/seasons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
+      body: JSON.stringify(data)
+    });
+  },
+
+  async update(id, data) {
+    return request(`/admin/seasons/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
+      body: JSON.stringify(data)
+    });
+  },
+
+  async end(id) {
+    return request(`/admin/seasons/${id}/end`, {
+      method: 'POST',
+      headers: getHeaders(true)
+    });
+  }
+};
+
+export const hallOfFame = {
+  async get() {
+    return request('/hall-of-fame', { headers: getHeaders(true) });
   }
 };

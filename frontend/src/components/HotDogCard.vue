@@ -37,6 +37,7 @@
         </span>
         <span class="hotdog-card-quantity">🌭 {{ dog.quantity }}</span>
         <span v-if="dog.date_eaten" class="hotdog-card-date">📅 {{ formatDate(dog.date_eaten) }}</span>
+        <span v-if="dog.is_exhibition" class="exhibition-pill" title="Logged in the off-season — doesn't count toward any season">Exhibition</span>
         <span>{{ timeAgo(dog.created_at) }}</span>
       </div>
 
@@ -94,7 +95,10 @@ export default {
     },
     formatDate(val) {
       if (!val) return '';
-      const d = val instanceof Date ? val : new Date(val + 'T00:00:00');
+      // The API sends DATE columns as "2026-09-26T00:00:00.000Z"; the calendar
+      // day is the first 10 chars. (Appending T00:00:00 to the full string made
+      // an invalid date, so card dates were blank.)
+      const d = val instanceof Date ? val : new Date(String(val).slice(0, 10) + 'T00:00:00');
       if (isNaN(d)) return '';
       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     },

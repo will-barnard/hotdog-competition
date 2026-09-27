@@ -2,7 +2,7 @@
   <div>
     <div class="page-header">
       <h1>🐕 My Dog Feed</h1>
-      <p v-if="totalDogs !== null">You've eaten <strong>{{ totalDogs }}</strong> hot dogs! 🌭</p>
+      <p v-if="totalDogs !== null">You've eaten <strong>{{ totalDogs }}</strong> hot dogs<template v-if="site.season"> in the {{ site.season.name }} season</template>! 🌭</p>
     </div>
 
     <div v-if="loading" class="loading">Loading your dogs...</div>
@@ -40,6 +40,7 @@
 
 <script>
 import { hotdogs, ratings, auth } from '../api';
+import { site } from '../siteState';
 import HotDogCard from '../components/HotDogCard.vue';
 
 export default {
@@ -50,6 +51,7 @@ export default {
       ratingData: {},
       pagination: {},
       page: 1,
+      site,
       totalDogs: null,
       loading: true,
       expandedId: null,

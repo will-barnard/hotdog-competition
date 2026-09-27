@@ -8,7 +8,7 @@
 
     <div v-else class="card">
       <div v-if="dates" class="comp-dates">
-        📅 Competition: {{ formatDate(dates.competition_start) }} — {{ formatDate(dates.competition_end) }}
+        📅 {{ dates.season ? dates.season.name + ' Season' : 'Competition' }}: {{ formatDate(dates.competition_start) }} — {{ formatDate(dates.competition_end) }}
       </div>
       <div class="rules-content">{{ rules }}</div>
     </div>
