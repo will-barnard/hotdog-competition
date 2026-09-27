@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const { pool } = require('../db');
 const { todayLocal, addDays } = require('../competitionTime');
 const { inSeasonSql, officialSql, getSeasonState, dateInSeason } = require('../services/seasons');
+const rateLimit = require('express-rate-limit');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -30,7 +31,26 @@ const upload = multer({
   }
 });
 
-router.post('/', authenticateToken, upload.single('image'), async (req, res) => {
+// Keyed by account, not IP: people on the same wifi don't block each other,
+// and it runs after auth so the user id is known.
+const hotdogPostLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,  // 1 minute
+  max: 5,                    // 5 posts per user per minute
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `user:${req.user.id}`,
+  message: { error: 'Slow down! Maximum 5 hot dog posts per minute.' },
+});
+
+// Stamp the arrival time before the photo uploads: a big photo on slow cell
+// data can take a while, and someone who hit Submit at 11:59:50 shouldn't be
+// told the season ended because the upload finished at 12:00:05.
+function stampArrival(req, res, next) {
+  req.receivedAt = new Date();
+  next();
+}
+
+router.post('/', stampArrival, authenticateToken, hotdogPostLimiter, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Image is required' });
@@ -69,7 +89,7 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
     // Logging is open while a season runs, or anytime the admin has
     // Off-Season mode on. Anything logged outside a running season — or dated
     // outside it — is exhibition and never counts toward any season.
-    const state = await getSeasonState();
+    const state = await getSeasonState(undefined, req.receivedAt);
     if (!state.logging_open) {
       return res.status(400).json({ error: 'The season has ended. Logging is closed.' });
     }

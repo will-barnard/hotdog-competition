@@ -26,9 +26,10 @@ function withStatus(season) {
   return season ? { ...season, status: statusOf(season) } : null;
 }
 
-async function getCurrentSeason(db = pool) {
+async function getCurrentSeason(db = pool, now = new Date()) {
   const r = await db.query('SELECT id, name, starts_at, ends_at FROM seasons WHERE id = current_season_id()');
-  return withStatus(r.rows[0] || null);
+  const season = r.rows[0] || null;
+  return season ? { ...season, status: statusOf(season, now) } : null;
 }
 
 // ?season=<id> if given and real, otherwise the current season.
@@ -41,10 +42,11 @@ async function resolveSeason(idParam, db = pool) {
   return getCurrentSeason(db);
 }
 
-// Everything the site needs to decide what mode it is in.
-async function getSeasonState(db = pool) {
+// Everything the site needs to decide what mode it is in. `now` lets the
+// hot dog POST judge by when the request arrived, not when its upload finished.
+async function getSeasonState(db = pool, now = new Date()) {
   const [season, settingsRows] = await Promise.all([
-    getCurrentSeason(db),
+    getCurrentSeason(db, now),
     db.query("SELECT key, value FROM settings WHERE key IN ('off_season_mode', 'hall_of_fame_public')")
   ]);
   const s = {};

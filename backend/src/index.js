@@ -22,7 +22,13 @@ const emailService = require('./services/email');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.set('trust proxy', 1);
+// Requests reach us through two proxies: Beachhead's nginx-proxy (which sees
+// the real client) and then the frontend container's nginx. Trusting only 1
+// hop made req.ip the nginx-proxy container for EVERY visitor, so all rate
+// limits were one bucket shared by the whole site. 2 hops = the real client
+// IP, and it can't be spoofed because nginx-proxy appends the address it saw.
+// Override with TRUST_PROXY_HOPS if another proxy (e.g. Cloudflare) is added.
+app.set('trust proxy', parseInt(process.env.TRUST_PROXY_HOPS || '2', 10));
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://hotdogcompetition.com')
   .split(',').map(o => o.trim()).filter(Boolean);
 app.use(cors({
@@ -47,23 +53,18 @@ const authLimiter = rateLimit({
 });
 const generalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,  // 1 minute
-  max: 120,                  // 120 requests per minute
+  // Per IP — but a household or a watch party on one wifi shares a public IP,
+  // and every page load makes several API calls, so leave real headroom.
+  max: 300,                  // 300 requests per minute
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later' },
 });
-const hotdogPostLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000,  // 1 minute
-  max: 2,                    // 2 hotdog posts per minute
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Slow down! Maximum 2 hotdog posts per minute.' },
-});
+// The hot dog post limiter lives in routes/hotdogs.js — it's per user.
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/password-reset', authLimiter);
 app.use('/api/', generalLimiter);
-app.post('/api/hotdogs', hotdogPostLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/hotdogs', hotdogRoutes);
