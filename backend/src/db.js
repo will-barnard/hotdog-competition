@@ -109,6 +109,9 @@ const migrations = [
   ['ADD COLUMN hotdogs.flag_text', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS flag_text TEXT DEFAULT NULL`],
   ['ADD COLUMN hotdogs.photo_hidden', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS photo_hidden BOOLEAN NOT NULL DEFAULT FALSE`],
   ['ADD COLUMN hotdogs.date_mismatch', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS date_mismatch BOOLEAN DEFAULT NULL`],
+  // The day the photo says it was taken (from the camera's embedded metadata),
+  // so admins can see *how far* off a mismatch is, not just that it is.
+  ['ADD COLUMN hotdogs.photo_taken_date', `ALTER TABLE hotdogs ADD COLUMN IF NOT EXISTS photo_taken_date DATE DEFAULT NULL`],
   ['CREATE comments', `
     CREATE TABLE IF NOT EXISTS comments (
       id SERIAL PRIMARY KEY,

@@ -149,6 +149,10 @@ export default {
         const compressed = await this.compressImage(this.imageFile);
         const formData = new FormData();
         formData.append('image', compressed, 'photo.jpg');
+        // Compressing strips the photo's embedded "taken on" date, so also send
+        // the start of the original file (where that date lives) for the
+        // server's date check. Small — not the whole photo.
+        formData.append('photo_meta', this.imageFile.slice(0, 512 * 1024), 'meta');
         formData.append('title', this.title);
         formData.append('quantity', this.quantity);
         formData.append('date_eaten', this.dateEaten);

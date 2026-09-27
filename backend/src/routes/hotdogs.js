@@ -18,10 +18,19 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Two parts: `image` is the browser-compressed photo we store; `photo_meta`
+// is the first chunk of the ORIGINAL file, sent only so we can read when it
+// was taken. The browser's compression (a canvas re-encode) strips all
+// embedded metadata, so the stored image never has a date in it — this was
+// why every post showed "no date". The chunk is parsed in memory and thrown
+// away, so location data in it is never saved.
+const PHOTO_META_MAX = 512 * 1024;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
+    // The original can be any format the phone produced (e.g. HEIC); we only read metadata from it.
+    if (file.fieldname === 'photo_meta') return cb(null, true);
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
@@ -42,6 +51,22 @@ const hotdogPostLimiter = rateLimit({
   message: { error: 'Slow down! Maximum 5 hot dog posts per minute.' },
 });
 
+// Returns the day a photo was taken as YYYY-MM-DD, or null. Camera dates are
+// the phone's local wall-clock time with no time zone, so read the raw
+// "2026:09:26 23:15:02" string rather than letting it become a Date — that
+// would shift late-evening photos to the next day on a UTC server.
+async function readPhotoDate(buffer) {
+  try {
+    const meta = await exifr.parse(buffer, { pick: ['DateTimeOriginal', 'CreateDate'], reviveValues: false });
+    const raw = meta && (meta.DateTimeOriginal || meta.CreateDate);
+    const m = typeof raw === 'string' && raw.match(/^(\d{4})[:-](\d{2})[:-](\d{2})/);
+    if (!m || m[1] === '0000') return null;
+    return `${m[1]}-${m[2]}-${m[3]}`;
+  } catch {
+    return null; // unreadable or no metadata
+  }
+}
+
 // Stamp the arrival time before the photo uploads: a big photo on slow cell
 // data can take a while, and someone who hit Submit at 11:59:50 shouldn't be
 // told the season ended because the upload finished at 12:00:05.
@@ -50,7 +75,10 @@ function stampArrival(req, res, next) {
   next();
 }
 
-router.post('/', stampArrival, authenticateToken, hotdogPostLimiter, upload.single('image'), async (req, res) => {
+router.post('/', stampArrival, authenticateToken, hotdogPostLimiter, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'photo_meta', maxCount: 1 }]), async (req, res) => {
+  // Keep the rest of the handler working with req.file as before.
+  req.file = req.files && req.files.image ? req.files.image[0] : undefined;
+  const photoMeta = req.files && req.files.photo_meta ? req.files.photo_meta[0] : undefined;
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Image is required' });
@@ -105,22 +133,17 @@ router.post('/', stampArrival, authenticateToken, hotdogPostLimiter, upload.sing
 
     const imageUrl = `/uploads/${filename}`;
 
-    // Extract EXIF date and compare to claimed date_eaten
-    let dateMismatch = null; // null = no EXIF data, true = mismatch, false = match
-    try {
-      const exif = await exifr.parse(req.file.buffer, { pick: ['DateTimeOriginal', 'CreateDate'] });
-      const exifDate = exif?.DateTimeOriginal || exif?.CreateDate;
-      if (exifDate) {
-        const exifDay = new Date(exifDate).toISOString().slice(0, 10);
-        dateMismatch = exifDay !== date_eaten;
-      }
-    } catch {
-      // No EXIF or parse failure — leave as null
-    }
+    // When was the photo taken, according to the camera? Compare to the day
+    // they claimed. null = the photo carried no date (screenshots, photos
+    // saved from messages/social apps, or edited photos often don't).
+    const photoTakenDate = await readPhotoDate(
+      photoMeta && photoMeta.size <= PHOTO_META_MAX ? photoMeta.buffer : req.file.buffer
+    );
+    const dateMismatch = photoTakenDate ? photoTakenDate !== date_eaten : null;
 
     const result = await pool.query(
-      'INSERT INTO hotdogs (user_id, title, description, quantity, image_url, date_eaten, date_mismatch, is_exhibition) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [req.user.id, title, description || null, qty, imageUrl, date_eaten, dateMismatch, isExhibition]
+      'INSERT INTO hotdogs (user_id, title, description, quantity, image_url, date_eaten, date_mismatch, photo_taken_date, is_exhibition) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+      [req.user.id, title, description || null, qty, imageUrl, date_eaten, dateMismatch, photoTakenDate, isExhibition]
     );
 
     const hotdog = result.rows[0];

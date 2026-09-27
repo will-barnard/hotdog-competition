@@ -377,8 +377,8 @@
               <th>Quantity</th>
               <th>Flag</th>
               <th>Photo</th>
-              <th>Date</th>
-              <th>EXIF</th>
+              <th>Posted</th>
+              <th>Photo Date Check</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -399,9 +399,12 @@
               </td>
               <td>{{ new Date(dog.created_at).toLocaleDateString() }}</td>
               <td>
-                <span v-if="dog.date_mismatch === true" class="flag-pill flag-pill--warning" title="Photo EXIF date does not match claimed date eaten">📸 Mismatch</span>
-                <span v-else-if="dog.date_mismatch === false" style="color:var(--success); font-size:0.8rem" title="Photo EXIF date matches claimed date eaten">✓ Match</span>
-                <span v-else style="color:var(--text-muted); font-size:0.8rem" title="No EXIF date in photo">—</span>
+                <template v-if="dog.date_mismatch === true">
+                  <span class="flag-pill flag-pill--warning" :title="`They said they ate it ${fmtDay(dog.date_eaten)}, but the photo says it was taken ${fmtDay(dog.photo_taken_date)}`">📸 Taken {{ fmtDay(dog.photo_taken_date) || '?' }}</span>
+                  <div style="color:var(--text-muted); font-size:0.75rem; margin-top:2px;">claimed {{ fmtDay(dog.date_eaten) }}</div>
+                </template>
+                <span v-else-if="dog.date_mismatch === false" style="color:var(--success); font-size:0.8rem" :title="`Photo was taken ${fmtDay(dog.photo_taken_date) || 'the same day'} — matches the day they claimed`">✓ Same day</span>
+                <span v-else style="color:var(--text-muted); font-size:0.8rem" title="The photo had no 'taken on' date to check. Common for screenshots and photos saved from texts or social apps. Posts from before this fix all show this.">No date</span>
               </td>
               <td>
                 <button class="btn btn-secondary btn-sm" @click="openEditModal(dog)">Edit</button>
@@ -568,6 +571,12 @@ export default {
     },
     historyAdminRows(h) {
       return this.resultRows(h.vote_type, h.results);
+    },
+    // DATE columns arrive as "2026-09-26T00:00:00.000Z"; the calendar day is the first 10 chars.
+    fmtDay(val) {
+      if (!val) return '';
+      const d = new Date(String(val).slice(0, 10) + 'T00:00:00');
+      return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     },
     formatShortDate(str) {
       if (!str) return '';
