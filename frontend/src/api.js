@@ -365,12 +365,33 @@ export const adminEmail = {
     return request('/admin/email/status', { headers: getHeaders(true) });
   },
 
-  async sendBulk(subject, html, group) {
+  async sendBulk(subject, html, group, image = null) {
     return request('/admin/email/bulk', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
-      body: JSON.stringify({ subject, html, group })
+      body: JSON.stringify({
+        subject, html, group,
+        image_path: image ? image.path : undefined,
+        image_position: image ? image.position : undefined
+      })
     });
+  },
+
+  async uploadImage(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await fetch(API_BASE + '/admin/email/image', {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: formData
+    });
+    const contentType = res.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await res.json() : {};
+    if (!res.ok) {
+      if (res.status === 413 && !data.error) throw new Error('Photo is too large.');
+      throw new Error(data.error || `Upload failed (${res.status})`);
+    }
+    return data;
   },
 
   async getWelcomeConfig() {

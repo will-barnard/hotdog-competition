@@ -54,13 +54,33 @@
           </div>
           <div class="form-group">
             <label>Body <span style="font-weight:400; color:var(--text-muted)">(HTML supported)</span></label>
-            <textarea v-model="form.html" rows="12" required placeholder="Email body content..."></textarea>
+            <textarea v-model="form.html" rows="12" placeholder="Email body content..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Photo <span style="font-weight:400; color:var(--text-muted)">(optional — shown in the email)</span></label>
+            <div v-if="!image">
+              <input ref="photoInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" :disabled="uploading" @change="onPhotoSelected" />
+              <span v-if="uploading" style="margin-left:8px; color:var(--text-muted);">Uploading...</span>
+            </div>
+            <div v-else class="email-photo-row">
+              <img :src="image.path" alt="Attached photo" class="email-photo-thumb" />
+              <div class="email-photo-controls">
+                <label class="email-photo-option"><input v-model="image.position" type="radio" value="above" /> Above the message</label>
+                <label class="email-photo-option"><input v-model="image.position" type="radio" value="below" /> Below the message</label>
+                <button type="button" class="btn btn-secondary btn-sm" @click="removePhoto">Remove photo</button>
+              </div>
+            </div>
           </div>
 
           <!-- Preview -->
-          <div v-if="form.html" style="margin-bottom:18px;">
+          <div v-if="form.html || image" style="margin-bottom:18px;">
             <label style="font-weight:600; font-size:0.9rem; display:block; margin-bottom:8px;">Preview</label>
-            <div class="email-preview" v-html="form.html"></div>
+            <div class="email-preview">
+              <img v-if="image && image.position === 'above'" :src="image.path" alt="" class="email-preview-photo" />
+              <div v-html="form.html"></div>
+              <img v-if="image && image.position === 'below'" :src="image.path" alt="" class="email-preview-photo" />
+            </div>
           </div>
 
           <button type="submit" class="btn btn-primary" :disabled="sending || !status?.enabled">
@@ -95,6 +115,8 @@ export default {
     return {
       status: null,
       form: { group: 'all', subject: '', html: '' },
+      image: null,        // { path, url, position }
+      uploading: false,
       sending: false,
       error: null,
       success: null,
@@ -112,14 +134,36 @@ export default {
         this.error = e.message;
       }
     },
+    async onPhotoSelected(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      this.error = null;
+      this.uploading = true;
+      try {
+        const uploaded = await adminEmail.uploadImage(file);
+        this.image = { ...uploaded, position: 'above' };
+      } catch (err) {
+        this.error = err.message;
+        e.target.value = '';
+      } finally {
+        this.uploading = false;
+      }
+    },
+    removePhoto() {
+      this.image = null;
+    },
     async sendEmail() {
+      if (!this.form.html.trim() && !this.image) {
+        this.error = 'Add a message or a photo before sending.';
+        return;
+      }
       if (!confirm(`Send this email to the "${this.form.group}" group? This cannot be undone.`)) return;
       this.error = null;
       this.success = null;
       this.result = null;
       this.sending = true;
       try {
-        this.result = await adminEmail.sendBulk(this.form.subject, this.form.html, this.form.group);
+        this.result = await adminEmail.sendBulk(this.form.subject, this.form.html, this.form.group, this.image);
         this.success = `Email sent! ${this.result.sent} delivered, ${this.result.queued} queued.`;
         await this.loadStatus();
       } catch (e) {
@@ -138,7 +182,50 @@ export default {
   border-radius: var(--radius-sm);
   padding: 16px;
   background: #fafbfc;
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
+}
+
+.email-preview-photo {
+  display: block;
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+
+.email-photo-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.email-photo-thumb {
+  width: 160px;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.email-photo-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.email-photo-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.email-photo-option input {
+  width: auto;
 }
 </style>
