@@ -365,14 +365,16 @@ export const adminEmail = {
     return request('/admin/email/status', { headers: getHeaders(true) });
   },
 
-  async sendBulk(subject, html, group, image = null) {
+  // options: { skip_already_sent, exclude_emails, dry_run }
+  async sendBulk(subject, html, group, image = null, options = {}) {
     return request('/admin/email/bulk', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getHeaders(true) },
       body: JSON.stringify({
         subject, html, group,
         image_path: image ? image.path : undefined,
-        image_position: image ? image.position : undefined
+        image_position: image ? image.position : undefined,
+        ...options
       })
     });
   },

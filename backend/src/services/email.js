@@ -46,6 +46,115 @@ async function incrementSent(count = 1) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Talking to Resend.
+//
+// Two things the original code got wrong, which is how a bulk send lost most
+// of its recipients:
+//  1. resend.emails.send() does NOT throw on failure — it resolves with
+//     { data: null, error }. Code that only caught exceptions counted every
+//     rejected email as sent, so nothing recorded who was skipped.
+//  2. Sends went out 10 at a time, back to back, which trips Resend's
+//     10-requests-per-second limit (429 rate_limit_exceeded).
+// Every send now goes through sendOne(): paced below the limit for the whole
+// process, retried on 429, and judged by the returned error.
+// ---------------------------------------------------------------------------
+const MIN_GAP_MS = 150;            // ~6-7 sends/sec, comfortably under 10/sec
+const MAX_429_RETRIES = 5;
+let nextSlot = 0;
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Reserve the next send slot. Shared by bulk, queue and welcome emails, so
+// they can't add up to more than the limit between them.
+async function waitForSlot() {
+  const now = Date.now();
+  const slot = Math.max(now, nextSlot);
+  nextSlot = slot + MIN_GAP_MS;
+  if (slot > now) await sleep(slot - now);
+}
+
+// Returns { ok: true, id } or { ok: false, error, rateLimited }.
+async function sendOne({ to, subject, html }) {
+  for (let attempt = 0; ; attempt++) {
+    await waitForSlot();
+    let result;
+    try {
+      result = await resend.emails.send({ from: fromEmail, to, subject, html });
+    } catch (err) {
+      return { ok: false, error: err.message }; // network failure etc.
+    }
+    const error = result && result.error;
+    if (!error) return { ok: true, id: result.data && result.data.id };
+
+    const rateLimited = error.statusCode === 429 || error.name === 'rate_limit_exceeded';
+    if (rateLimited && attempt < MAX_429_RETRIES) {
+      const retryAfter = parseFloat(result.headers && result.headers['retry-after']);
+      await sleep(Number.isFinite(retryAfter) ? retryAfter * 1000 : 1000 * (attempt + 1));
+      continue;
+    }
+    return { ok: false, error: error.message || error.name || 'Send failed', rateLimited };
+  }
+}
+
+// Resend timestamps can look like "2026-09-27 18:32:10.123+00", which JS's
+// Date parser doesn't reliably accept. Normalize to ISO first.
+function parseResendDate(value) {
+  if (!value) return null;
+  let v = String(value).trim().replace(' ', 'T');
+  v = v.replace(/([+-]\d{2})$/, '$1:00');       // "+00" -> "+00:00"
+  if (!/(Z|[+-]\d{2}:?\d{2})$/.test(v)) v += 'Z'; // no zone given -> UTC
+  const d = new Date(v);
+  return isNaN(d) ? null : d;
+}
+
+// Emails Resend has on record — i.e. actually accepted — since `sinceDate`.
+// Throws a status-400 error with a readable message if the API key isn't
+// allowed to list (a "sending access" key can only send).
+async function listSentSince(sinceDate, maxPages = 50) {
+  const out = [];
+  let after;
+  for (let page = 0; page < maxPages; page++) {
+    await waitForSlot();
+    const res = await resend.emails.list(after ? { limit: 100, after } : { limit: 100 });
+    if (res.error) {
+      const e = new Error(
+        res.error.name === 'restricted_api_key' || res.error.statusCode === 401 || res.error.statusCode === 403
+          ? "Your Resend API key is only allowed to send, so the site can't look up who already received it. Paste the addresses to skip instead (Resend dashboard → Emails), or use a Full Access key."
+          : `Couldn't read Resend's email log: ${res.error.message || res.error.name}`
+      );
+      e.status = 400;
+      throw e;
+    }
+    const rows = (res.data && res.data.data) || [];
+    let reachedOlder = false;
+    for (const row of rows) {
+      const created = parseResendDate(row.created_at);
+      if (created && created < sinceDate) { reachedOlder = true; break; }
+      out.push(row);
+    }
+    if (reachedOlder || !res.data.has_more || rows.length === 0) break;
+    after = rows[rows.length - 1].id;
+  }
+  return out;
+}
+
+// Resend is the source of truth for how many went out today. Re-sync the
+// local counter to it (it over-counted when rejected sends were counted).
+async function syncSentTodayFrom(resendRows) {
+  const today = todayKey();
+  const n = resendRows.filter(r => {
+    const d = parseResendDate(r.created_at);
+    return d && d.toISOString().slice(0, 10) === today;
+  }).length;
+  await pool.query(
+    `INSERT INTO email_daily_log (log_date, email_count) VALUES ($1, $2)
+     ON CONFLICT (log_date) DO UPDATE SET email_count = $2`,
+    [today, n]
+  );
+  return n;
+}
+
 // Send a single email, respecting the daily limit. Returns { sent, queued, error }.
 async function sendEmail({ to, subject, html }) {
   if (!isEnabled()) return { sent: false, error: 'Email service not configured' };
@@ -57,57 +166,56 @@ async function sendEmail({ to, subject, html }) {
     return { sent: false, queued: true };
   }
 
-  try {
-    await resend.emails.send({ from: fromEmail, to, subject, html });
+  const r = await sendOne({ to, subject, html });
+  if (r.ok) {
     await incrementSent(1);
     return { sent: true };
-  } catch (err) {
-    console.error('[EMAIL] Send failed:', err.message);
-    return { sent: false, error: err.message };
   }
+  if (r.rateLimited) {
+    // Still being throttled after retries — hand it to the queue rather than drop it.
+    await queueEmail({ to, subject, html });
+    return { sent: false, queued: true };
+  }
+  console.error('[EMAIL] Send failed:', r.error);
+  return { sent: false, error: r.error };
 }
 
-// Send bulk emails with daily-limit awareness.
-// Returns { sent: number, queued: number, failed: number }
+// Send bulk emails with daily-limit awareness, one at a time at a safe pace.
+// Returns { sent, queued, failed, failed_recipients: [{ email, error }] }
 async function sendBulk(recipients, subject, html) {
-  if (!isEnabled()) return { sent: 0, queued: 0, failed: 0, error: 'Email service not configured' };
+  if (!isEnabled()) return { sent: 0, queued: 0, failed: 0, failed_recipients: [], error: 'Email service not configured' };
 
-  let sentToday = await getSentToday();
+  const sentToday = await getSentToday();
   const remaining = Math.max(0, DAILY_LIMIT - sentToday);
 
   const toSendNow = recipients.slice(0, remaining);
   const toQueue = recipients.slice(remaining);
 
   let sent = 0;
-  let failed = 0;
+  let queued = 0;
+  const failedRecipients = [];
 
-  // Send in batches of 10 to avoid hammering the API
-  for (let i = 0; i < toSendNow.length; i += 10) {
-    const batch = toSendNow.slice(i, i + 10);
-    const results = await Promise.allSettled(
-      batch.map(email =>
-        resend.emails.send({ from: fromEmail, to: email, subject, html })
-      )
-    );
-    for (const r of results) {
-      if (r.status === 'fulfilled') sent++;
-      else {
-        console.error('[EMAIL] Bulk send failed for one recipient:', r.reason?.message);
-        failed++;
-      }
+  for (const email of toSendNow) {
+    const r = await sendOne({ to: email, subject, html });
+    if (r.ok) {
+      sent++;
+      await incrementSent(1); // per email, so the count is right even if this is interrupted
+    } else if (r.rateLimited) {
+      await queueEmail({ to: email, subject, html }); // queue processor will retry
+      queued++;
+    } else {
+      console.error(`[EMAIL] Bulk send failed for ${email}:`, r.error);
+      failedRecipients.push({ email, error: r.error });
     }
   }
 
-  if (sent > 0) await incrementSent(sent);
-
-  // Queue the rest
-  let queued = 0;
+  // Over today's limit — queue for the next day
   for (const email of toQueue) {
     await queueEmail({ to: email, subject, html });
     queued++;
   }
 
-  return { sent, queued, failed };
+  return { sent, queued, failed: failedRecipients.length, failed_recipients: failedRecipients };
 }
 
 async function queueEmail({ to, subject, html }) {
@@ -132,15 +240,17 @@ async function processQueue() {
   );
 
   for (const row of result.rows) {
-    try {
-      await resend.emails.send({ from: fromEmail, to: row.recipient, subject: row.subject, html: row.html_body });
+    const r = await sendOne({ to: row.recipient, subject: row.subject, html: row.html_body });
+    if (r.ok) {
       await incrementSent(1);
       await pool.query(`UPDATE email_queue SET status = 'sent', sent_at = NOW() WHERE id = $1`, [row.id]);
-    } catch (err) {
-      console.error(`[EMAIL] Queue send failed for ${row.recipient}:`, err.message);
+    } else if (r.rateLimited) {
+      break; // still throttled — leave the rest pending for the next run
+    } else {
+      console.error(`[EMAIL] Queue send failed for ${row.recipient}:`, r.error);
       await pool.query(
         `UPDATE email_queue SET status = 'failed', error = $2 WHERE id = $1`,
-        [row.id, err.message]
+        [row.id, r.error]
       );
     }
   }
@@ -206,4 +316,4 @@ function startProcessor() {
   }, 10000);
 }
 
-module.exports = { init, isEnabled, sendEmail, sendBulk, getSentToday, startProcessor, DAILY_LIMIT };
+module.exports = { init, isEnabled, sendEmail, sendBulk, getSentToday, startProcessor, listSentSince, syncSentTodayFrom, DAILY_LIMIT };

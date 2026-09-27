@@ -95,12 +95,66 @@ router.get('/status', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // POST /api/admin/email/bulk — send a bulk email to all or a group of users
+// Works out who a bulk email goes to, after optional skips:
+//  - skip_already_sent: anyone Resend has on record as having been sent an
+//    email with this exact subject in the last 7 days (catches a send that
+//    was cut short — rejected emails never reach Resend's log), plus anyone
+//    already waiting in our own queue for this subject.
+//  - exclude_emails: addresses pasted by the admin (fallback when the Resend
+//    key isn't allowed to read the log).
+async function resolveRecipients({ group, subject, skip_already_sent, exclude_emails }) {
+  let query = 'SELECT email FROM users';
+  // Official = official in the current season
+  if (group === 'official') query += ` WHERE ${officialSql('users.id')}`;
+  else if (group === 'exhibition') query += ` WHERE NOT ${officialSql('users.id')}`;
+  else if (group === 'admin') query += ' WHERE is_admin = TRUE';
+  // 'all' or undefined = everyone
+  const result = await pool.query(query);
+  const all = result.rows.map(r => r.email);
+
+  const norm = e => String(e).trim().toLowerCase();
+  const alreadyGot = new Set();
+  const manual = new Set(
+    (Array.isArray(exclude_emails) ? exclude_emails : String(exclude_emails || '').split(/[\s,;]+/))
+      .map(norm).filter(e => e.includes('@'))
+  );
+
+  if (skip_already_sent) {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const sentRows = await email.listSentSince(since);
+    // While we have Resend's log in hand, correct today's sent counter — it
+    // over-counted rejected sends before this fix.
+    await email.syncSentTodayFrom(sentRows);
+    for (const row of sentRows) {
+      if (row.subject === subject) (row.to || []).forEach(t => alreadyGot.add(norm(t)));
+    }
+    const pending = await pool.query(
+      `SELECT recipient FROM email_queue WHERE status = 'pending' AND subject = $1`, [subject]
+    );
+    pending.rows.forEach(r => alreadyGot.add(norm(r.recipient)));
+  }
+
+  const recipients = [];
+  let skippedAlready = 0;
+  let skippedManual = 0;
+  for (const e of all) {
+    if (alreadyGot.has(norm(e))) skippedAlready++;
+    else if (manual.has(norm(e))) skippedManual++;
+    else recipients.push(e);
+  }
+  return { group_total: all.length, skipped_already_received: skippedAlready, skipped_excluded: skippedManual, recipients };
+}
+
+// POST /api/admin/email/bulk — send a bulk email to all or a group of users.
+// dry_run: true returns who it WOULD go to (and today's remaining quota)
+// without sending anything.
 router.post('/bulk', authenticateToken, requireAdmin, async (req, res) => {
-  const { subject, html, group, image_path, image_position } = req.body;
+  const { subject, html, group, image_path, image_position, dry_run } = req.body;
   // group: 'all', 'official', 'exhibition', 'admin'
   // image_path: from POST /image; image_position: 'above' (default) | 'below'
 
-  if (!subject || (!html && !image_path)) {
+  if (!subject) return res.status(400).json({ error: 'A subject is required' });
+  if (!dry_run && !html && !image_path) {
     return res.status(400).json({ error: 'A subject and a message or photo are required' });
   }
 
@@ -120,23 +174,31 @@ router.post('/bulk', authenticateToken, requireAdmin, async (req, res) => {
   }
 
   try {
-    let query = 'SELECT email FROM users';
-    // Official = official in the current season
-    if (group === 'official') query += ` WHERE ${officialSql('users.id')}`;
-    else if (group === 'exhibition') query += ` WHERE NOT ${officialSql('users.id')}`;
-    else if (group === 'admin') query += ' WHERE is_admin = TRUE';
-    // 'all' or undefined = everyone
+    const r = await resolveRecipients(req.body);
+    const summary = {
+      group_total: r.group_total,
+      skipped_already_received: r.skipped_already_received,
+      skipped_excluded: r.skipped_excluded,
+      total_recipients: r.recipients.length
+    };
 
-    const result = await pool.query(query);
-    const recipients = result.rows.map(r => r.email);
-
-    if (recipients.length === 0) {
-      return res.json({ sent: 0, queued: 0, failed: 0, total_recipients: 0 });
+    if (dry_run) {
+      const sentToday = await email.getSentToday();
+      return res.json({
+        ...summary,
+        recipients: r.recipients,
+        remaining_today: Math.max(0, email.DAILY_LIMIT - sentToday)
+      });
     }
 
-    const stats = await email.sendBulk(recipients, subject, body);
-    res.json({ ...stats, total_recipients: recipients.length });
+    if (r.recipients.length === 0) {
+      return res.json({ ...summary, sent: 0, queued: 0, failed: 0, failed_recipients: [] });
+    }
+
+    const stats = await email.sendBulk(r.recipients, subject, body);
+    res.json({ ...summary, ...stats });
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     console.error('Bulk email error:', err);
     res.status(500).json({ error: 'Failed to send bulk email' });
   }
