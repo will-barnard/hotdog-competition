@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { pool } = require('../db');
+const { localDateSql, todayLocal, addDays } = require('../competitionTime');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -49,16 +50,18 @@ router.post('/', authenticateToken, upload.single('image'), async (req, res) => 
     if (!date_eaten) {
       return res.status(400).json({ error: 'Date eaten is required' });
     }
-    const eaten = new Date(date_eaten + 'T00:00:00');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const threeDaysAgo = new Date(today);
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    // Compare calendar days in competition time. The container clock is UTC,
+    // so "today" computed with setHours() flipped to tomorrow at 7pm CDT.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date_eaten)) {
+      return res.status(400).json({ error: 'Date eaten must be YYYY-MM-DD' });
+    }
+    const today = todayLocal();
+    const threeDaysAgo = addDays(today, -3);
 
-    if (eaten > today) {
+    if (date_eaten > today) {
       return res.status(400).json({ error: 'Cannot log future hot dogs' });
     }
-    if (eaten < threeDaysAgo) {
+    if (date_eaten < threeDaysAgo) {
       return res.status(400).json({ error: 'Hot dogs can only be logged within 3 days of eating' });
     }
 
@@ -182,7 +185,7 @@ router.get('/my-feed', authenticateToken, async (req, res) => {
 
     const totalDogs = await pool.query(
       `SELECT COALESCE(SUM(quantity), 0)::int as total FROM hotdogs
-       WHERE user_id = $1 AND date_eaten >= $2::date AND date_eaten <= $3::date`,
+       WHERE user_id = $1 AND date_eaten >= ${localDateSql('$2')} AND date_eaten <= ${localDateSql('$3')}`,
       [req.user.id, compStart, compEnd]
     );
 

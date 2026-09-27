@@ -69,13 +69,16 @@ export default {
     const threeDaysAgo = new Date(today);
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
+    // Local calendar day — toISOString() is UTC, which rolls to tomorrow after 7pm CDT.
+    const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
     return {
       title: '',
       quantity: 1,
       description: '',
-      dateEaten: today.toISOString().split('T')[0],
-      minDate: threeDaysAgo.toISOString().split('T')[0],
-      maxDate: today.toISOString().split('T')[0],
+      dateEaten: ymd(today),
+      minDate: ymd(threeDaysAgo),
+      maxDate: ymd(today),
       imageFile: null,
       imagePreview: null,
       loading: false,

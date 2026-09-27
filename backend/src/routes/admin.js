@@ -1,5 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
+const { localDateSql } = require('../competitionTime');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -26,7 +27,7 @@ router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
 
     const result = await pool.query(`
       SELECT u.id, u.username, u.email, u.is_admin, u.is_official_competitor, u.created_at,
-             COALESCE(SUM(CASE WHEN h.date_eaten >= $1::date AND h.date_eaten <= $2::date THEN h.quantity ELSE 0 END), 0)::int as total_dogs
+             COALESCE(SUM(CASE WHEN h.date_eaten >= ${localDateSql('$1')} AND h.date_eaten <= ${localDateSql('$2')} THEN h.quantity ELSE 0 END), 0)::int as total_dogs
       FROM users u
       LEFT JOIN hotdogs h ON u.id = h.user_id
       GROUP BY u.id

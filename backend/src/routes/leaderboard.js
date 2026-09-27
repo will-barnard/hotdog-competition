@@ -1,5 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
+const { localDateSql } = require('../competitionTime');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -27,8 +28,8 @@ router.get('/overall', async (req, res) => {
              COUNT(h.id)::int as total_entries
       FROM users u
       LEFT JOIN hotdogs h ON u.id = h.user_id
-        AND h.date_eaten >= $1::date
-        AND h.date_eaten <= $2::date
+        AND h.date_eaten >= ${localDateSql('$1')}
+        AND h.date_eaten <= ${localDateSql('$2')}
       GROUP BY u.id
       HAVING COALESCE(SUM(h.quantity), 0) > 0
       ORDER BY total_dogs DESC, total_entries DESC
@@ -56,8 +57,8 @@ router.get('/competitors', async (req, res) => {
              COUNT(h.id)::int as total_entries
       FROM users u
       LEFT JOIN hotdogs h ON u.id = h.user_id
-        AND h.date_eaten >= $1::date
-        AND h.date_eaten <= $2::date
+        AND h.date_eaten >= ${localDateSql('$1')}
+        AND h.date_eaten <= ${localDateSql('$2')}
       WHERE u.is_official_competitor = TRUE
       GROUP BY u.id
       HAVING COALESCE(SUM(h.quantity), 0) > 0
@@ -103,7 +104,7 @@ router.get('/breakdown/:userId', authenticateToken, requireAdmin, async (req, re
 
     const entriesResult = await pool.query(`
       SELECT id, title, date_eaten, quantity, created_at,
-             (date_eaten >= $2::date AND date_eaten <= $3::date) as in_window
+             (date_eaten >= ${localDateSql('$2')} AND date_eaten <= ${localDateSql('$3')}) as in_window
       FROM hotdogs
       WHERE user_id = $1
       ORDER BY date_eaten DESC, created_at DESC

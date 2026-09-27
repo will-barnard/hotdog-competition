@@ -631,10 +631,16 @@ export default {
         this.savingWarning = false;
       }
     },
+    // <input type="datetime-local"> is zone-less and saveSettings() parses it as
+    // the browser's local time, so it must be filled with LOCAL wall-clock parts.
+    // (It used toISOString(), i.e. UTC, which pushed both dates 5-6 hours later
+    // every time this form was saved — even when only the rules were edited.)
     toDatetimeLocal(isoStr) {
       if (!isoStr) return '';
       const d = new Date(isoStr);
-      return d.toISOString().slice(0, 16);
+      if (isNaN(d)) return '';
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     },
     async saveSettings() {
       this.savingSettings = true;
