@@ -73,11 +73,13 @@ function dateInSeason(ymd, season) {
 
 async function getSeasonStats(seasonId, db = pool) {
   if (!seasonId) {
-    return { total_competitors: 0, total_official_competitors: 0, total_dogs: 0, total_entries: 0, prize_pool: 0 };
+    const users = await db.query('SELECT COUNT(*)::int AS n FROM users');
+    return { total_competitors: users.rows[0].n, total_official_competitors: 0, total_dogs: 0, total_entries: 0, prize_pool: 0 };
   }
   const r = await db.query(`
     SELECT
-      COUNT(DISTINCT h.user_id)::int AS total_competitors,
+      -- Competitors = everyone signed up, not just people who've logged a dog.
+      (SELECT COUNT(*)::int FROM users) AS total_competitors,
       COALESCE(SUM(h.quantity), 0)::int AS total_dogs,
       COUNT(h.id)::int AS total_entries,
       (SELECT COUNT(*)::int FROM season_officials WHERE season_id = s.id) AS total_official_competitors

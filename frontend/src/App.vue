@@ -7,7 +7,6 @@
           <router-link to="/feed">Feed</router-link>
           <router-link to="/leaderboards">Leaderboards</router-link>
           <router-link v-if="showVote" to="/vote">Vote</router-link>
-          <router-link v-if="showHallOfFame" to="/hall-of-fame">Hall of Fame</router-link>
           <template v-if="user">
             <router-link to="/my-feed">My Dogs</router-link>
             <router-link to="/settings">Settings</router-link>
@@ -26,7 +25,6 @@
         <router-link to="/feed" @click="mobileOpen = false">Feed</router-link>
         <router-link to="/leaderboards" @click="mobileOpen = false">Leaderboards</router-link>
         <router-link v-if="showVote" to="/vote" @click="mobileOpen = false">Vote</router-link>
-        <router-link v-if="showHallOfFame" to="/hall-of-fame" @click="mobileOpen = false">Hall of Fame</router-link>
         <router-link to="/rules" @click="mobileOpen = false">Rules</router-link>
         <template v-if="user">
           <router-link v-if="site.loggingOpen" to="/log" @click="mobileOpen = false">Log a Dog</router-link>
@@ -68,10 +66,6 @@ export default {
     },
     showVote() {
       return site.loaded && site.settings.nav_show_vote !== 'false';
-    },
-    // Admins always see it so they can preview before flipping it public.
-    showHallOfFame() {
-      return site.hallOfFamePublic || !!(this.user && this.user.is_admin);
     }
   },
   async created() {

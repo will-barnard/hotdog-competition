@@ -14,7 +14,7 @@
       <div v-if="stats" class="stats-grid">
         <div class="stat-card">
           <div class="stat-value">{{ stats.total_competitors }}</div>
-          <div class="stat-label">Competitors (logged a dog)</div>
+          <div class="stat-label">Total Competitors</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ stats.total_official_competitors }}</div>

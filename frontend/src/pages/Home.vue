@@ -80,6 +80,13 @@
         <span class="home-card-desc">Who's eating the most dogs?</span>
       </router-link>
 
+      <!-- Admins always see it (to preview); everyone else once it's made public. -->
+      <router-link to="/hall-of-fame" class="home-card" v-if="showHallOfFame">
+        <span class="home-card-icon">🏛️</span>
+        <span class="home-card-title">Hall of Fame</span>
+        <span class="home-card-desc">{{ hallOfFamePublic ? 'Champions of seasons past' : 'Admin preview — hidden from everyone else' }}</span>
+      </router-link>
+
       <router-link to="/rules" class="home-card">
         <span class="home-card-icon">📜</span>
         <span class="home-card-title">Rules</span>
@@ -108,6 +115,13 @@ export default {
   computed: {
     brand() {
       return this.dates && this.dates.season ? `${this.dates.season.name} Hotdog Showdown` : brandName();
+    },
+    hallOfFamePublic() {
+      return !!(this.dates && this.dates.hall_of_fame_public === true);
+    },
+    showHallOfFame() {
+      const user = auth.getUser();
+      return this.hallOfFamePublic || !!(user && user.is_admin);
     },
     loggingOpen() {
       return !this.dates || this.dates.logging_open !== false;
