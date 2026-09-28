@@ -84,7 +84,7 @@
       <router-link to="/hall-of-fame" class="home-card" v-if="showHallOfFame">
         <span class="home-card-icon">🏛️</span>
         <span class="home-card-title">Hall of Fame</span>
-        <span class="home-card-desc">{{ hallOfFamePublic ? 'Champions of seasons past' : 'Admin preview — hidden from everyone else' }}</span>
+        <span class="home-card-desc">{{ hallOfFamePublic ? 'Legends of the hot dog' : 'Admin preview — hidden from everyone else' }}</span>
       </router-link>
 
       <router-link to="/rules" class="home-card">
