@@ -46,6 +46,19 @@ router.get('/competitors', async (req, res) => {
   }
 });
 
+// Name, dates and status of a season, so a saved link like
+// /leaderboards?season=3 can label itself (defaults to the current season).
+router.get('/season', async (req, res) => {
+  try {
+    const season = await resolveSeason(req.query.season);
+    if (!season) return res.status(404).json({ error: 'No seasons yet' });
+    res.json(season);
+  } catch (err) {
+    console.error('Season info error:', err);
+    res.status(500).json({ error: 'Failed to load season' });
+  }
+});
+
 // All-time, everyone — the Competitors page.
 router.get('/all-competitors', async (req, res) => {  try {
     const result = await pool.query(`

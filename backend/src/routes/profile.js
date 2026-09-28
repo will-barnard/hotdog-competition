@@ -84,8 +84,8 @@ router.get('/:username', async (req, res) => {
         FROM seasons s JOIN hotdogs h ON ${inSeasonSql('h', 's')}
         GROUP BY s.id, h.user_id
       ), ranked AS (
-        -- Same tie-break as the leaderboard and Hall of Fame (dogs, then entries)
-        SELECT *, RANK() OVER (PARTITION BY season_id ORDER BY dogs DESC, entries DESC)::int AS rank
+        -- Ties on dogs share a rank, same as the leaderboard and Hall of Fame
+        SELECT *, RANK() OVER (PARTITION BY season_id ORDER BY dogs DESC)::int AS rank
         FROM totals
       )
       SELECT s.id, s.name, s.starts_at, s.ends_at,

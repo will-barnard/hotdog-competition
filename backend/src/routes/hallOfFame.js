@@ -1,10 +1,12 @@
-// Hall of Fame: top 3 overall for every finished season, plus a few season
-// totals. Hidden (404) from everyone but admins until the admin turns on the
-// hall_of_fame_public setting. Season stats will grow here.
+// Hall of Fame: every season that has started — the one in progress first,
+// then finished ones newest first — with its top 3, season totals and awards
+// (services/seasonAwards.js). Hidden (404) from everyone but admins until the
+// admin turns on the hall_of_fame_public setting.
 const express = require('express');
 const { pool } = require('../db');
 const { optionalAuth } = require('../middleware/auth');
-const { inSeasonSql, officialSql, getSeasonState } = require('../services/seasons');
+const { inSeasonSql, officialSql, getSeasonState, withStatus } = require('../services/seasons');
+const { getSeasonAwards, THRESHOLDS } = require('../services/seasonAwards');
 
 const router = express.Router();
 
@@ -31,13 +33,13 @@ router.get('/', optionalAuth, async (req, res) => {
              (SELECT COUNT(*)::int FROM season_officials so WHERE so.season_id = s.id) AS total_official_competitors
       FROM seasons s
       LEFT JOIN hotdogs h ON ${inSeasonSql('h', 's')}
-      WHERE s.ends_at < NOW()
+      WHERE s.starts_at <= NOW()
       GROUP BY s.id
       ORDER BY s.ends_at DESC
     `);
 
-    // Same ordering as the leaderboard (dogs, then entries) so the podium
-    // always matches the final standings.
+    // Same as the leaderboard: listed by dogs then entries, but people tied on
+    // dogs share a place (two 🥈s), so the podium matches the standings.
     const podiumResult = await pool.query(`
       WITH totals AS (
         SELECT s.id AS season_id, u.id AS user_id, u.username, u.profile_picture,
@@ -46,11 +48,11 @@ router.get('/', optionalAuth, async (req, res) => {
         FROM seasons s
         JOIN hotdogs h ON ${inSeasonSql('h', 's')}
         JOIN users u ON u.id = h.user_id
-        WHERE s.ends_at < NOW()
+        WHERE s.starts_at <= NOW()
         GROUP BY s.id, u.id
       ), ranked AS (
         SELECT *,
-               RANK() OVER (PARTITION BY season_id ORDER BY total_dogs DESC, total_entries DESC)::int AS place,
+               RANK() OVER (PARTITION BY season_id ORDER BY total_dogs DESC)::int AS place,
                ROW_NUMBER() OVER (PARTITION BY season_id ORDER BY total_dogs DESC, total_entries DESC) AS rn
         FROM totals
       )
@@ -59,12 +61,16 @@ router.get('/', optionalAuth, async (req, res) => {
       ORDER BY season_id, rn
     `);
 
-    const seasons = seasonsResult.rows.map(s => ({
-      ...s,
-      podium: podiumResult.rows.filter(p => p.season_id === s.id)
+    const seasons = await Promise.all(seasonsResult.rows.map(async row => {
+      const s = withStatus(row);
+      return {
+        ...s,
+        podium: podiumResult.rows.filter(p => p.season_id === s.id),
+        awards: await getSeasonAwards(s.id, { ended: s.status === 'ended' })
+      };
     }));
 
-    res.json({ public: state.hall_of_fame_public, seasons });
+    res.json({ public: state.hall_of_fame_public, thresholds: THRESHOLDS, seasons });
   } catch (err) {
     console.error('Hall of Fame error:', err);
     res.status(500).json({ error: 'Failed to load the Hall of Fame' });

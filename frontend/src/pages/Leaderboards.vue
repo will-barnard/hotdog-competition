@@ -2,14 +2,16 @@
   <div>
     <div class="page-header">
       <h1>🏆 Leaderboards</h1>
-      <p v-if="site.season">
-        {{ site.season.name }} Season
-        <template v-if="site.status === 'ended'"> · 🏁 Final standings</template>
+      <p v-if="shownSeason">
+        {{ shownSeason.name }} Season
+        <template v-if="shownSeason.status === 'ended'"> · 🏁 Final standings</template>
+        <template v-else-if="shownSeason.status === 'active' && seasonId"> · In progress</template>
       </p>
       <p v-else>Who's eating the most dogs?</p>
     </div>
 
     <div style="text-align: left; margin-bottom: 20px;">
+      <router-link v-if="seasonId" to="/hall-of-fame" class="btn btn-secondary" style="display:inline-block; margin-right:8px;">← Hall of Fame</router-link>
       <router-link to="/competitors" class="btn" style="display:inline-block;">👥 Competitors List</router-link>
     </div>
 
@@ -130,6 +132,10 @@ export default {
   data() {
     return {
       site,
+      // /leaderboards?season=<id> pins the page to one season, so the link
+      // keeps showing that season's standings after newer seasons exist.
+      seasonId: this.$route.query.season || null,
+      viewSeason: null,
       tab: 'overall',
       overallList: [],
       competitorsList: [],
@@ -143,6 +149,9 @@ export default {
     };
   },
   computed: {
+    shownSeason() {
+      return this.seasonId ? this.viewSeason : this.site.season;
+    },
     currentList() {
       return this.tab === 'overall' ? this.overallList : this.competitorsList;
     },
@@ -166,8 +175,11 @@ export default {
     if (this.$route.query.tab === 'competitors') {
       this.tab = 'competitors';
     }
+    if (this.seasonId) {
+      leaderboard.season(this.seasonId).then(s => { this.viewSeason = s; }).catch(() => {});
+    }
     try {
-      const data = await leaderboard.overall();
+      const data = await leaderboard.overall(this.seasonId);
       if (data.not_started) {
         this.notStarted = true;
         this.competitionStart = data.competition_start;
@@ -188,7 +200,7 @@ export default {
       if (this.competitorsLoaded || this.notStarted) return;
       this.loading = true;
       try {
-        const data = await leaderboard.competitors();
+        const data = await leaderboard.competitors(this.seasonId);
         if (data.not_started) {
           this.notStarted = true;
           this.competitionStart = data.competition_start;
@@ -206,7 +218,7 @@ export default {
       this.breakdown = { user: entry, entries: [], window_total: 0, all_time_total: 0, competition_start: '', competition_end: '' };
       this.breakdownLoading = true;
       try {
-        const data = await leaderboard.breakdown(entry.id);
+        const data = await leaderboard.breakdown(entry.id, this.seasonId);
         this.breakdown = data;
       } catch (e) {
         console.error(e);

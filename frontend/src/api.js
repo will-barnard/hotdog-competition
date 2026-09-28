@@ -148,8 +148,12 @@ export const leaderboard = {
     return request('/leaderboard/all-competitors');
   },
 
-  async breakdown(userId) {
-    return request(`/leaderboard/breakdown/${userId}`, { headers: getHeaders(true) });
+  async breakdown(userId, seasonId) {
+    return request(`/leaderboard/breakdown/${userId}` + seasonQuery(seasonId), { headers: getHeaders(true) });
+  },
+
+  async season(seasonId) {
+    return request('/leaderboard/season' + seasonQuery(seasonId));
   }
 };
 
